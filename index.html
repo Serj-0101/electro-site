@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ГЕРМАН — монтаж электропроводки и электрооборудования</title>
+  <meta name="description" content="ГЕРМАН — профессиональный монтаж электропроводки, электрощитовых, освещения и уличного освещения в Майкопе и Адыгее. Качественно. Безопасно. Под ключ.">
+  <meta name="theme-color" content="#0A0A0B">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%2300D4FF' d='M13 2L4 14h6l-1 8 9-12h-6l1-8z'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Manrope:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="is-booting">
+
+  <!-- ===== Прелоадер ===== -->
+  <div class="preloader" id="preloader" aria-hidden="true">
+    <div class="preloader__inner">
+      <div class="preloader__logo">ГЕРМАН</div>
+      <div class="preloader__counter"><span id="preloaderCounter">0</span>%</div>
+    </div>
+    <div class="preloader__bolt">⚡</div>
+  </div>
+
+  <!-- ===== Кастомный курсор ===== -->
+  <div class="cursor-dot" id="cursorDot" aria-hidden="true"></div>
+  <div class="cursor-ring" id="cursorRing" aria-hidden="true"></div>
+
+  <!-- ===== Шапка ===== -->
+  <header class="header">
+    <a href="index.html" class="header__logo magnetic">ГЕРМАН<span class="accent">.</span></a>
+    <button class="burger magnetic" id="burger" aria-label="Открыть меню" aria-expanded="false">
+      <span class="burger__line"></span>
+      <span class="burger__line"></span>
+    </button>
+  </header>
+
+  <!-- ===== Полноэкранное меню ===== -->
+  <nav class="menu" id="menu" aria-hidden="true">
+    <ul class="menu__list">
+      <li class="menu__item"><a href="index.html" class="menu__link">Главная</a></li>
+      <li class="menu__item"><a href="pages/services.html" class="menu__link">Услуги</a></li>
+      <li class="menu__item"><a href="pages/portfolio.html" class="menu__link">Работы</a></li>
+      <li class="menu__item"><a href="pages/price.html" class="menu__link">Цены</a></li>
+      <li class="menu__item"><a href="pages/about.html" class="menu__link">О компании</a></li>
+      <li class="menu__item"><a href="pages/contacts.html" class="menu__link">Контакты</a></li>
+    </ul>
+    <div class="menu__contacts">
+      <a href="tel:+79604362164" class="menu__phone">+7 960 436-21-64</a>
+      <a href="tel:88772568595" class="menu__phone menu__phone--dim">8 (8772) 56-85-95</a>
+      <span class="menu__note">Майкоп · Республика Адыгея</span>
+    </div>
+  </nav>
+  <main>
+    <!-- ===== Hero ===== -->
+    <section class="hero" id="top">
+      <canvas id="webgl-hero" aria-hidden="true"></canvas>
+      <div class="hero__glow" aria-hidden="true"></div>
+      <div class="hero__content">
+        <p class="hero__tagline">Электромонтажные работы · Майкоп и Адыгея</p>
+        <h1 class="hero__title">
+          <span class="hero__title-line"><span>Энергия</span></span>
+          <span class="hero__title-line"><span>под контролем</span></span>
+        </h1>
+        <p class="hero__subtitle">Монтаж электропроводки, щитовых и освещения — качественно, безопасно, под&nbsp;ключ.</p>
+        <div class="hero__actions">
+          <a href="#contacts" class="btn btn--primary magnetic">Вызвать электрика</a>
+          <a href="#services" class="btn btn--ghost magnetic">Наши услуги</a>
+        </div>
+      </div>
+      <div class="hero__scroll" aria-hidden="true"><span></span>листайте вниз</div>
+    </section>
+
+    <!-- ===== Услуги ===== -->
+    <section class="section services" id="services">
+      <div class="container">
+        <p class="kicker reveal">Что мы делаем</p>
+        <h2 class="section__title reveal">Услуги <span class="accent">·</span> полный цикл</h2>
+        <div class="services__grid">
+          <a href="pages/services.html#wiring" class="card reveal">
+            <div class="card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" stroke-linejoin="round"/></svg>
+            </div>
+            <h3 class="card__title">Монтаж проводки</h3>
+            <p class="card__text">Полная замена и прокладка электропроводки в квартирах, домах и офисах. Скрытый и открытый монтаж по ГОСТ.</p>
+            <span class="card__more">Подробнее →</span>
+          </a>
+          <a href="pages/services.html#panels" class="card reveal">
+            <div class="card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M7 8h4M7 12h4M7 16h10M15 8h2"/></svg>
+            </div>
+            <h3 class="card__title">Электрощитовые</h3>
+            <p class="card__text">Сборка и монтаж электрощитов: автоматика, УЗО, реле напряжения. Надёжная защита вашей сети.</p>
+            <span class="card__more">Подробнее →</span>
+          </a>
+          <a href="pages/services.html#lighting" class="card reveal">
+            <div class="card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.7 1 1.5 1 2.5h6c0-1 .2-1.8 1-2.5A6 6 0 0 0 12 3z"/></svg>
+            </div>
+            <h3 class="card__title">Освещение</h3>
+            <p class="card__text">Проектирование и монтаж внутреннего освещения: точечные светильники, трековые системы, умный свет.</p>
+            <span class="card__more">Подробнее →</span>
+          </a>
+          <a href="pages/services.html#outdoor" class="card reveal">
+            <div class="card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2v4M12 6l-5 6h10l-5-6zM12 12v10M4 22h16"/></svg>
+            </div>
+            <h3 class="card__title">Уличное освещение</h3>
+            <p class="card__text">Освещение фасадов, территорий и участков. Фасадная подсветка, фонари, ландшафтный свет.</p>
+            <span class="card__more">Подробнее →</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Преимущества ===== -->
+    <section class="section advantages">
+      <div class="container">
+        <p class="kicker reveal">Почему ГЕРМАН</p>
+        <h2 class="section__title reveal">Ток не прощает ошибок. <br><span class="text-dim">Мы — не ошибаемся.</span></h2>
+        <div class="advantages__grid">
+          <div class="adv reveal">
+            <span class="adv__num">01</span>
+            <h3>Безопасность</h3>
+            <p>Все работы — по ПУЭ и ГОСТ. Гарантия на монтаж 2 года.</p>
+          </div>
+          <div class="adv reveal">
+            <span class="adv__num">02</span>
+            <h3>Точность</h3>
+            <p>Смета до старта работ. Цена не меняется в процессе.</p>
+          </div>
+          <div class="adv reveal">
+            <span class="adv__num">03</span>
+            <h3>Сроки</h3>
+            <p>Работаем быстро и по графику. Убираем за собой.</p>
+          </div>
+          <div class="adv reveal">
+            <span class="adv__num">04</span>
+            <h3>Опыт</h3>
+            <p>Десятки объектов: квартиры, дома, коммерческие помещения.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Работы ===== -->
+    <section class="section works" id="works">
+      <div class="container">
+        <p class="kicker reveal">Портфолио</p>
+        <h2 class="section__title reveal">Наши работы</h2>
+        <div class="works__grid">
+          <a href="pages/portfolio.html" class="work w-1 reveal"><span class="work__bolt" aria-hidden="true">⚡</span><span class="work__label">Квартира-новостройка · проводка под ключ</span></a>
+          <a href="pages/portfolio.html" class="work w-2 reveal"><span class="work__bolt" aria-hidden="true">⚡</span><span class="work__label">Частный дом · щит на 48 модулей</span></a>
+          <a href="pages/portfolio.html" class="work w-3 reveal"><span class="work__bolt" aria-hidden="true">⚡</span><span class="work__label">Офис · трековое освещение</span></a>
+          <a href="pages/portfolio.html" class="work w-4 reveal"><span class="work__bolt" aria-hidden="true">⚡</span><span class="work__label">Территория кафе · уличный свет</span></a>
+          <a href="pages/portfolio.html" class="work w-5 reveal"><span class="work__bolt" aria-hidden="true">⚡</span><span class="work__label">Фасадная подсветка здания</span></a>
+          <a href="pages/portfolio.html" class="work w-6 reveal"><span class="work__bolt" aria-hidden="true">⚡</span><span class="work__label">Санузел · влагозащищённая электрика</span></a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Контакты ===== -->
+    <section class="section contacts" id="contacts">
+      <div class="container contacts__inner">
+        <div class="contacts__info">
+          <p class="kicker reveal">Связь</p>
+          <h2 class="section__title reveal">Оставьте заявку <span class="accent">·</span> перезвоним за 15 минут</h2>
+          <div class="contacts__phones reveal">
+            <a href="tel:+79604362164" class="contacts__phone magnetic">+7 960 436-21-64 <small>МАХ</small></a>
+            <a href="tel:88772568595" class="contacts__phone contacts__phone--dim magnetic">8 (8772) 56-85-95</a>
+          </div>
+          <p class="contacts__addr reveal">Майкоп · Республика Адыгея · выезд на объект бесплатно</p>
+        </div>
+        <form class="form reveal" id="contactForm">
+          <label class="form__field">
+            <span>Ваше имя</span>
+            <input type="text" name="name" placeholder="Как к вам обращаться" required>
+          </label>
+          <label class="form__field">
+            <span>Телефон</span>
+            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required>
+          </label>
+          <label class="form__field">
+            <span>Что нужно сделать</span>
+            <textarea name="task" rows="3" placeholder="Например: заменить проводку в 2-комнатной квартире"></textarea>
+          </label>
+          <button type="submit" class="btn btn--primary btn--wide magnetic">Отправить заявку</button>
+          <p class="form__note">Нажимая кнопку, вы соглашаетесь с обработкой персональных данных</p>
+          <p class="form__success" hidden>⚡ Заявка отправлена! Перезвоним в течение 15 минут.</p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== Подвал ===== -->
+  <footer class="footer">
+    <div class="container footer__inner">
+      <a href="index.html" class="footer__logo">ГЕРМАН<span class="accent">.</span></a>
+      <nav class="footer__nav">
+        <a href="pages/services.html">Услуги</a>
+        <a href="pages/portfolio.html">Работы</a>
+        <a href="pages/price.html">Цены</a>
+        <a href="pages/contacts.html">Контакты</a>
+      </nav>
+      <div class="footer__contacts">
+        <a href="tel:+79604362164">+7 960 436-21-64 (МАХ)</a>
+        <a href="tel:88772568595">8 (8772) 56-85-95</a>
+      </div>
+      <p class="footer__copy">© <span id="year">2026</span> ГЕРМАН · Электромонтажные работы</p>
+    </div>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="js/webgl-hero.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
+
