@@ -1,6 +1,6 @@
 /* ============================================================
-   ГЕРМАН — «Наши работы»: спираль карточек вокруг светящегося
-   хребта. Прокрутка раскручивает спираль (Three.js).
+   ГЕРМАН — «Наши работы»: спираль карточек вокруг трёх переплетённых
+   светящихся проводов. Прокрутка раскручивает спираль (Three.js).
    Без WebGL / при reduce-motion остаётся обычная сетка.
    ============================================================ */
 (() => {
@@ -203,43 +203,82 @@
     scene.add(root);
     root.add(helix);
 
-    /* ----- Хребет: ядро + два слоя свечения, неподвижный ----- */
-    const SPINE_H = 60;
-    const spine = new THREE.Group();
-    root.add(spine);
-    spine.add(new THREE.Mesh(
-      new THREE.CylinderGeometry(0.04, 0.04, SPINE_H, 10, 1, true),
-      new THREE.MeshBasicMaterial({ color: 0xbff4ff }),
-    ));
-    [[0.16, 0.16], [0.5, 0.05]].forEach(([r, o]) => {
-      spine.add(new THREE.Mesh(
-        new THREE.CylinderGeometry(r, r, SPINE_H, 24, 1, true),
-        new THREE.MeshBasicMaterial({
-          color: CYAN, transparent: true, opacity: o,
-          blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
-        }),
-      ));
-    });
+    /* ----- Три переплетённых провода (коса), вращаются вокруг оси ----- */
+    const BRAID_H = 24;
+    const BRAID_R = isMobile ? 0.42 : 0.55;
+    const TWIST = 1.5;          // рад на единицу высоты
+    const PERIOD = 4;           // расстояние между импульсами
+    const WRAP = 16;            // кратно PERIOD
+    const WIRES = [
+      { phase: 0,     color: 0x00d4ff, speed: 2.4 },
+      { phase: 1 / 3, color: 0x7fe9ff, speed: -1.9 },
+      { phase: 2 / 3, color: 0xffb800, speed: 2.9 },
+    ];
+    const wireAngle = (y, w) => w.phase * Math.PI * 2 + y * TWIST;
+    const wireRadius = (y, w) => BRAID_R + 0.14 * Math.sin(y * 0.9 + w.phase * 6);
 
-    // Поток искр вдоль хребта
-    const SPARKS = isMobile ? 90 : 220;
-    const sparkPos = new Float32Array(SPARKS * 3);
-    const sparkSpeed = new Float32Array(SPARKS);
-    for (let i = 0; i < SPARKS; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const r = 0.06 + Math.random() * 0.35;
-      sparkPos[i * 3] = Math.cos(a) * r;
-      sparkPos[i * 3 + 1] = (Math.random() - 0.5) * 14;
-      sparkPos[i * 3 + 2] = Math.sin(a) * r;
-      sparkSpeed[i] = 0.6 + Math.random() * 1.8;
-    }
-    const sparkGeo = new THREE.BufferGeometry();
-    sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
-    const sparks = new THREE.Points(sparkGeo, new THREE.PointsMaterial({
-      size: 0.09, map: glowTex, color: 0x9fefff, transparent: true, opacity: 0.9,
-      blending: THREE.AdditiveBlending, depthWrite: false,
-    }));
-    root.add(sparks);
+    const braid = new THREE.Group();
+    root.add(braid);
+    const wireUniforms = [];
+
+    const wireVertex = `
+      varying vec3 vN;
+      varying float vY;
+      void main() {
+        vN = normalize(normalMatrix * normal);
+        vY = position.y;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`;
+    const wireFragment = `
+      uniform float uTime, uBase, uGain, uPhase, uSpeed, uPeriod, uWidth;
+      uniform vec3 uColor;
+      varying vec3 vN;
+      varying float vY;
+      void main() {
+        float s = fract((vY - uSpeed * uTime) / uPeriod + uPhase);
+        float d = (s - 0.5) * uPeriod;
+        float pulse = exp(-d * d / (uWidth * uWidth));
+        pulse *= 0.7 + 0.3 * sin(uTime * 9.0 + uPhase * 20.0);
+        float rim = 1.0 - abs(vN.z);
+        float a = uBase * (0.45 + 0.9 * rim) + pulse * uGain;
+        vec3 col = mix(uColor, vec3(1.0), pulse * 0.7) * (1.0 + pulse * 1.4);
+        gl_FragColor = vec4(col, clamp(a, 0.0, 1.0));
+      }`;
+
+    const makeWireMaterial = (w, base, gain, width) => {
+      const u = {
+        uTime: { value: 0 }, uBase: { value: base }, uGain: { value: gain },
+        uPhase: { value: w.phase }, uSpeed: { value: w.speed }, uPeriod: { value: PERIOD },
+        uWidth: { value: width }, uColor: { value: new THREE.Color(w.color) },
+      };
+      wireUniforms.push(u);
+      return new THREE.ShaderMaterial({
+        uniforms: u, vertexShader: wireVertex, fragmentShader: wireFragment,
+        transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+      });
+    };
+
+    const pulseSprites = [];
+    WIRES.forEach((w) => {
+      const curve = new THREE.Curve();
+      curve.getPoint = (t, target = new THREE.Vector3()) => {
+        const y = (t - 0.5) * BRAID_H;
+        const a = wireAngle(y, w);
+        const r = wireRadius(y, w);
+        return target.set(Math.cos(a) * r, y, Math.sin(a) * r);
+      };
+      braid.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 380, 0.05, 8, false), makeWireMaterial(w, 0.34, 0.75, 0.45)));
+      braid.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 380, 0.15, 8, false), makeWireMaterial(w, 0.07, 0.22, 0.7)));
+
+      for (let n = 0; n < WRAP / PERIOD; n++) {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: glowTex, color: w.color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+        }));
+        braid.add(sp);
+        pulseSprites.push({ sp, w, n });
+      }
+    });
+    const wrapY = (v) => ((((v + WRAP / 2) % WRAP) + WRAP) % WRAP) - WRAP / 2;
 
     /* ----- Спираль: рельса + карточки + спицы к хребту ----- */
     const railPts = [];
@@ -418,14 +457,18 @@
       dust.rotation.y = t * 0.02 + progress * 0.8;
       dust.position.y = progress * 1.5;
 
-      // искры бегут вверх по хребту
-      const arr = sparkGeo.attributes.position.array;
-      for (let i = 0; i < SPARKS; i++) {
-        let y = arr[i * 3 + 1] + sparkSpeed[i] * 0.016 + velocity * 4;
-        if (y > 7) y -= 14; else if (y < -7) y += 14;
-        arr[i * 3 + 1] = y;
-      }
-      sparkGeo.attributes.position.needsUpdate = true;
+      // провода вращаются, прокрутка добавляет оборотов; импульсы бегут вдоль них
+      braid.rotation.y = t * 0.45 + progress * Math.PI * 8;
+      wireUniforms.forEach((u) => { u.uTime.value = t; });
+      pulseSprites.forEach(({ sp, w, n }) => {
+        const y = wrapY(w.speed * t + PERIOD * (0.5 - w.phase) + n * PERIOD);
+        const a = wireAngle(y, w);
+        const r = wireRadius(y, w);
+        sp.position.set(Math.cos(a) * r, y, Math.sin(a) * r);
+        const beat = 0.7 + 0.3 * Math.sin(t * 9 + w.phase * 20);
+        sp.scale.setScalar(0.38 * beat + 0.12);
+        sp.material.opacity = 0.9 * beat;
+      });
 
       // яркость и прозрачность каждой карточки по положению
       const activeFloat = f;
@@ -462,9 +505,6 @@
       showWork(active % works.length);
       if (ui.bar) ui.bar.style.transform = `scaleY(${progress.toFixed(4)})`;
       if (ui.hint) ui.hint.classList.toggle('is-hidden', progress > 0.03);
-
-      // лёгкое «дыхание» свечения хребта
-      spine.children[1].material.opacity = 0.14 + Math.sin(t * 2.2) * 0.03 + (Math.random() < 0.01 ? 0.1 : 0);
 
       renderer.render(scene, camera);
     }
