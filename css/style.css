@@ -260,13 +260,18 @@ body.menu-open .menu__contacts { opacity: 1; transform: none; }
   text-align: center;
   overflow: hidden;
 }
-#webgl-hero {
-  position: absolute;
+.webgl-bg {
+  position: fixed;
   inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.webgl-bg canvas {
   width: 100%;
   height: 100%;
   display: block;
 }
+main, .footer { position: relative; z-index: 1; }
 .hero__glow {
   position: absolute;
   inset: 0;
