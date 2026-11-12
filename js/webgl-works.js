@@ -288,7 +288,8 @@
       });
     };
 
-    const pulseSprites = [];
+    /* ----- Молнии: случайные ветвящиеся разряды, бегут снизу вверх ----- */
+    const wireCurves = [];
     WIRES.forEach((w) => {
       const curve = new THREE.Curve();
       curve.getPoint = (t, target = new THREE.Vector3()) => {
@@ -297,18 +298,103 @@
         const r = wireRadius(y, w);
         return target.set(Math.cos(a) * r, y, Math.sin(a) * r);
       };
-      braid.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 380, 0.05, 8, false), makeWireMaterial(w, 0.34, 0.75, 0.45)));
-      braid.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 380, 0.15, 8, false), makeWireMaterial(w, 0.07, 0.22, 0.7)));
-
-      for (let n = 0; n < WRAP / PERIOD; n++) {
-        const sp = new THREE.Sprite(new THREE.SpriteMaterial({
-          map: glowTex, color: w.color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
-        }));
-        braid.add(sp);
-        pulseSprites.push({ sp, w, n });
-      }
+      wireCurves.push(curve);
+      /* сама трубка мягко светится; весь свет несут случайные молнии */
+      braid.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 380, 0.05, 8, false), makeWireMaterial(w, 0.34, 0.1, 0.45)));
+      braid.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 380, 0.15, 8, false), makeWireMaterial(w, 0.07, 0.04, 0.7)));
     });
-    const wrapY = (v) => ((((v + WRAP / 2) % WRAP) + WRAP) % WRAP) - WRAP / 2;
+
+    /* Пул спрайтов: головы и хвосты молний */
+    const BOLT_POOL = 120;
+    const boltSprites = [];
+    for (let i = 0; i < BOLT_POOL; i++) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: glowTex, color: 0xffffff, transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      }));
+      sp.visible = false;
+      braid.add(sp);
+      boltSprites.push(sp);
+    }
+    let spriteCursor = 0;
+    const takeSprites = (n) => {
+      const arr = [];
+      for (let k = 0; k < n; k++) { arr.push(boltSprites[spriteCursor % BOLT_POOL]); spriteCursor++; }
+      return arr;
+    };
+
+    const TRAIL = 5;         // спрайтов в хвосте одной «нити»
+    const bolts = [];
+    const spawnBolt = (o = {}) => {
+      if (bolts.length > 26) return;                 // защита от перенасыщения
+      const wIdx = o.wire !== undefined ? o.wire : Math.floor(Math.random() * WIRES.length);
+      const depth = o.depth || 0;
+      bolts.push({
+        wIdx,
+        w: WIRES[wIdx],
+        u: o.u !== undefined ? o.u : 0.03 + Math.random() * 0.3,  // рождение внизу трубки
+        speed: (o.speed || 0.2 + Math.random() * 0.15) * (1 + depth * 0.18),
+        bright: o.bright !== undefined ? o.bright : 1,
+        depth,
+        gap: 0.006 + Math.random() * 0.01 + depth * 0.004,
+        size: (isMobile ? 0.3 : 0.38) * (1 - depth * 0.16),       // ветви — тоньше
+        sps: takeSprites(TRAIL).map((sp) => {
+          sp.material.color.setHex(WIRES[wIdx].color);
+          return { sp, m: sp.material };
+        }),
+      });
+    };
+
+    let nextBolt = 0.6;
+
+    const updateBolts = (dt, t) => {
+      /* случайное рождение: очень яркий пучок внизу трубки */
+      if (t > nextBolt) {
+        nextBolt = t + 0.45 + Math.random() * 1.5;
+        spawnBolt();
+        if (Math.random() < 0.3) spawnBolt();
+      }
+      for (let i = bolts.length - 1; i >= 0; i--) {
+        const b = bolts[i];
+        b.u += b.speed * dt;                       // всегда снизу вверх
+        /* затухание ближе к верху и по времени жизни */
+        if (b.u > 0.7) b.bright *= 1 - Math.min(1, 2.2 * dt);
+        b.bright *= 1 - 0.1 * dt;
+        /* случайное ветвление: пучок делится на 1–2 дочерних */
+        if (b.depth < 3 && b.u > 0.08 && b.bright > 0.22 && Math.random() < 0.9 * dt) {
+          const kids = 1 + Math.floor(Math.random() * 2);
+          for (let k = 0; k < kids; k++) {
+            const spread = Math.random() < 0.55
+              ? b.wIdx
+              : (b.wIdx + (Math.random() < 0.5 ? 1 : WIRES.length - 1)) % WIRES.length;
+            spawnBolt({
+              wire: spread,
+              u: Math.max(0.02, b.u - 0.008 - Math.random() * 0.02),
+              speed: b.speed * (0.75 + Math.random() * 0.6),
+              bright: b.bright * (0.45 + Math.random() * 0.4),
+              depth: b.depth + 1,
+            });
+          }
+          b.bright *= 0.7;                          // энергия делится между пучками
+        }
+        /* смерть: рассыпался и погас */
+        if (b.u > 0.985 || b.bright < 0.05) {
+          b.sps.forEach(({ sp }) => { sp.visible = false; });
+          bolts.splice(i, 1);
+          continue;
+        }
+        /* хвост: от яркой головы к тоненькой ниточке */
+        const fadeIn = Math.min(1, b.u / 0.05);
+        b.sps.forEach(({ sp, m }, j) => {
+          const uu = Math.max(0.001, b.u - j * b.gap);
+          sp.position.copy(wireCurves[b.wIdx].getPoint(uu));
+          const f = (1 - j / TRAIL) * b.bright * fadeIn;
+          m.opacity = f;
+          sp.scale.setScalar(b.size * (1 - (j / TRAIL) * 0.7) * (0.75 + f * 0.5));
+          sp.visible = true;
+        });
+      }
+    };
 
     /* ----- Спираль: рельса + карточки + спицы к хребту ----- */
     const railPts = [];
@@ -470,6 +556,7 @@
       if (!visible || document.hidden) { rafId = 0; return; }
       rafId = requestAnimationFrame(loop);
 
+      const dt = Math.min(clock.getDelta(), 0.05);
       const t = clock.getElapsedTime();
       const target = getTarget();
       const velocity = target - progress;
@@ -486,18 +573,10 @@
       dust.rotation.y = t * 0.02 + progress * 0.8;
       dust.position.y = progress * 1.5;
 
-      // провода вращаются, прокрутка добавляет оборотов; импульсы бегут вдоль них
+      // провода вращаются, прокрутка добавляет оборотов; молнии бегут снизу вверх
       braid.rotation.y = t * 0.45 + progress * Math.PI * 8;
       wireUniforms.forEach((u) => { u.uTime.value = t; });
-      pulseSprites.forEach(({ sp, w, n }) => {
-        const y = wrapY(w.speed * t + PERIOD * (0.5 - w.phase) + n * PERIOD);
-        const a = wireAngle(y, w);
-        const r = wireRadius(y, w);
-        sp.position.set(Math.cos(a) * r, y, Math.sin(a) * r);
-        const beat = 0.7 + 0.3 * Math.sin(t * 9 + w.phase * 20);
-        sp.scale.setScalar(0.38 * beat + 0.12);
-        sp.material.opacity = 0.9 * beat;
-      });
+      updateBolts(dt, t);
 
       // яркость и прозрачность каждой карточки по положению
       const activeFloat = f;
