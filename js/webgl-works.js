@@ -386,8 +386,7 @@
       }));
       mesh.frustumCulled = false;
       mesh.visible = false;
-      mesh.position.z = -0.4;
-      root.add(mesh);
+      braid.add(mesh);
 
       const makeHalo = () => {
         const h = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -472,17 +471,39 @@
           const dirn = pts[i + 1].clone().sub(pts[i - 1]).normalize();
           const sideV = new THREE.Vector3(rnd() - 0.5, (rnd() - 0.5) * (depth === 0 ? 0.4 : 1), (rnd() - 0.5) * 0.6).normalize();
           const bd = dirn.multiplyScalar(0.55).addScaledVector(sideV, 0.95);
-          if (depth === 0) bd.y = -Math.abs(bd.y) - 0.15;
+          if (depth === 0) bd.y = Math.abs(bd.y) + 0.12;   // ветви основного канала тянутся вверх
           bd.normalize();
           const blen = len * (0.14 + rnd() * 0.3) * (depth === 0 ? 1 : 0.8);
           addPath(pts[i], pts[i].clone().addScaledVector(bd, blen), depth + 1, ts[i]);
         }
       };
 
-      const x = slot.x + (rnd() - 0.5) * 1.6;
-      const start = new THREE.Vector3(x, BOLT_Y0, (rnd() - 0.5) * 1.2);
-      const end = new THREE.Vector3(x + (rnd() - 0.5) * 3.2, BOLT_Y1, start.z + (rnd() - 0.5) * 1.4);
-      addPath(start, end, 0, 0);
+      /* главный канал: вдоль трубки снизу вверх — рождение внутри, отрыв наружу,
+         спиральный обход и дрожание; путь строится по K опорным точкам кривой */
+      const wIdx = Math.floor(rnd() * WIRES.length);
+      const curve = wireCurves[wIdx];
+      const K = isMobile ? 10 : 14;
+      const u0 = 0.05, u1 = 0.94;
+      const spin = rnd() * Math.PI * 2;
+      let prev = null, prevT = 0, firstPt = null, midPt = null, lastPt = null;
+      for (let k = 0; k <= K; k++) {
+        const u = u0 + (u1 - u0) * (k / K);
+        const p = curve.getPoint(u);
+        /* вынос наружу: рождение внутри трубки → спиральный отрыв к поверхности и дальше */
+        const e = -0.03 + (k / K) * (0.24 + rnd() * 0.1) + Math.sin(u * 47.9 + k * 3.1) * 0.05;
+        p.x += Math.cos(spin + u * 16) * e;
+        p.z += Math.sin(spin + u * 16) * e;
+        /* дрожание канала — рваная молния */
+        p.x += (rnd() - 0.5) * 0.12;
+        p.y += (rnd() - 0.5) * 0.1;
+        p.z += (rnd() - 0.5) * 0.12;
+        const tt = (k / K) * (u1 - u0) * BRAID_H * 1.1;
+        if (k > 0) addPath(prev, p, 0, prevT);
+        if (k === 0) firstPt = p;
+        if (k === Math.floor(K / 2)) midPt = p;
+        lastPt = p;
+        prev = p; prevT = tt;
+      }
 
       const [gr, gg, gb] = GLOW_COLORS[Math.floor(rnd() * GLOW_COLORS.length)];
       slot.attrs.position.array.fill(0);
@@ -494,10 +515,10 @@
 
       slot.haloTop.material.color.setRGB(gr, gg, gb);
       slot.haloMid.material.color.setRGB(gr, gg, gb);
-      slot.haloTop.position.set(start.x, BOLT_Y0 - 1.2, -1.5);
-      slot.haloTop.scale.setScalar(isMobile ? 7 : 10);
-      slot.haloMid.position.set((start.x + end.x) / 2, 0, -1.5);
-      slot.haloMid.scale.setScalar(isMobile ? 9 : 13);
+      slot.haloTop.position.set(firstPt.x, firstPt.y - 0.7, firstPt.z);
+      slot.haloTop.scale.setScalar(isMobile ? 4 : 5.5);
+      slot.haloMid.position.copy(midPt);
+      slot.haloMid.scale.setScalar(isMobile ? 6 : 8);
 
       slot.maxT = maxT;
       slot.age = 0;
