@@ -30,8 +30,13 @@
   <!-- ===== Шапка ===== -->
   <header class="header">
     <a href="index.html" class="header__logo magnetic">ГЕРМАН<span class="accent">.</span></a>
-    <a href="#contacts" class="cta-fixed magnetic">Вызвать электрика</a>
-    <button class="burger magnetic" id="burger" aria-label="Открыть меню" aria-expanded="false">
+    <div class="header__controls">
+      <a href="#contacts" class="cta-fixed magnetic">Вызвать электрика</a>
+      <button class="sound-btn magnetic" id="soundToggle" aria-label="Включить музыку" aria-pressed="false">
+        <svg class="sound-btn__icon sound-btn__icon--on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M11 5L6 9H3v6h3l5 4V5z" stroke-linejoin="round"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" stroke-linecap="round"/></svg>
+        <svg class="sound-btn__icon sound-btn__icon--off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M11 5L6 9H3v6h3l5 4V5z" stroke-linejoin="round"/><path d="M16 9l6 6M22 9l-6 6" stroke-linecap="round"/></svg>
+      </button>
+      <button class="burger magnetic" id="burger" aria-label="Открыть меню" aria-expanded="false">
       <span class="burger__line"></span>
       <span class="burger__line"></span>
     </button>

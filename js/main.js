@@ -143,6 +143,37 @@
     });
   }
 
+  /* ---------- Фоновая музыка ---------- */
+  const soundBtn = document.getElementById('soundToggle');
+  if (soundBtn) {
+    const bgAudio = new Audio('audio/bg.mp3');
+    bgAudio.loop = true;
+    bgAudio.volume = 0.35;
+    let playing = false;
+    const setIcon = (on) => {
+      soundBtn.classList.toggle('is-on', on);
+      soundBtn.setAttribute('aria-pressed', String(on));
+      soundBtn.setAttribute('aria-label', on ? 'Выключить музыку' : 'Включить музыку');
+    };
+    const start = () => {
+      bgAudio.play().then(() => { playing = true; setIcon(true); }).catch(() => { playing = false; setIcon(false); });
+    };
+    const stop = () => { bgAudio.pause(); playing = false; setIcon(false); };
+
+    let savedOn = false;
+    try { savedOn = localStorage.getItem('herman-sound') === 'on'; } catch (e) {}
+    setIcon(savedOn);
+
+    soundBtn.addEventListener('click', () => {
+      playing ? stop() : start();
+      try { localStorage.setItem('herman-sound', playing ? 'on' : 'off'); } catch (e) {}
+    });
+    /* автозапуск после первого жеста пользователя, если сохранено «вкл» */
+    if (savedOn) {
+      window.addEventListener('pointerdown', () => { if (!playing) start(); }, { once: true });
+    }
+  }
+
   /* ---------- Год в подвале ---------- */
   const year = document.getElementById('year');
   if (year) year.textContent = new Date().getFullYear();
