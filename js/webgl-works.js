@@ -313,7 +313,7 @@
     const LEVELS = [5, 4, 3, 2, 2];                      // глубина дробления пути
     const BRANCH_P = [0.45, 0.35, 0.28, 0.18, 0];        // шанс ветви в каждой вершине
     const GLOW_COLORS = [[0.45, 0.62, 1], [0.62, 0.45, 1], [0.3, 0.78, 1]];
-    const GROW = 0.16;                                // время пробоя сверху вниз, с
+    const GROW = 0.24;                                // время пробоя снизу вверх, с
     const BOLT_Y0 = 6.6, BOLT_Y1 = -6.6;
 
     const lightningVertex = `
@@ -483,7 +483,7 @@
       const wIdx = Math.floor(rnd() * WIRES.length);
       const curve = wireCurves[wIdx];
       const K = isMobile ? 10 : 14;
-      const u0 = 0.05, u1 = 0.94;
+      const u0 = 0.0, u1 = 1.0;              // вся длина трубки — на весь экран
       const spin = rnd() * Math.PI * 2;
       let prev = null, prevT = 0, firstPt = null, midPt = null, lastPt = null;
       for (let k = 0; k <= K; k++) {
@@ -549,16 +549,16 @@
           f = 1.15;
         } else {
           const a = s.age - GROW;
-          f = 0.85 * Math.exp(-a * 2.6);
+          f = 0.85 * Math.exp(-a * 1.5);
           s.peaks.forEach((p) => { if (a > p) f += 0.9 * Math.exp(-(a - p) * 13); });
           f *= 0.88 + rnd() * 0.24;
-          f *= 1 - smoothstep(0.85, 1.15, a);
+          f *= 1 - smoothstep(1.5, 1.9, a);
         }
         s.uniforms.uFlash.value = f;
         s.haloTop.material.opacity = Math.min(1, f * 0.34);
         s.haloMid.material.opacity = Math.min(1, f * 0.11);
 
-        if (s.age > GROW + 1.15) {
+        if (s.age > GROW + 1.9) {
           s.active = false;
           s.mesh.visible = false;
           s.haloTop.visible = false;
