@@ -329,15 +329,20 @@
       if (bolts.length > 26) return;                 // защита от перенасыщения
       const wIdx = o.wire !== undefined ? o.wire : Math.floor(Math.random() * WIRES.length);
       const depth = o.depth || 0;
+      const birthU = o.u !== undefined ? o.u : 0.04 + Math.random() * 0.22;   // рождение внизу, внутри трубки
       bolts.push({
         wIdx,
         w: WIRES[wIdx],
-        u: o.u !== undefined ? o.u : 0.03 + Math.random() * 0.3,  // рождение внизу трубки
-        speed: (o.speed || 0.2 + Math.random() * 0.15) * (1 + depth * 0.18),
+        u: birthU,
+        birthU,
+        exitBase: o.exitBase !== undefined ? o.exitBase : -0.03,   // стартует внутри трубки
+        spread: o.spread !== undefined ? o.spread : 0.5 + depth * 0.3, // уходит от трубки всё дальше
+        speed: (o.speed || 0.22 + Math.random() * 0.16) * (1 + depth * 0.15),
         bright: o.bright !== undefined ? o.bright : 1,
         depth,
         gap: 0.006 + Math.random() * 0.01 + depth * 0.004,
-        size: (isMobile ? 0.3 : 0.38) * (1 - depth * 0.16),       // ветви — тоньше
+        size: (isMobile ? 0.3 : 0.38) * (1 - depth * 0.15),       // ветви — тоньше
+        spin: Math.random() * Math.PI * 2,
         sps: takeSprites(TRAIL).map((sp) => {
           sp.material.color.setHex(WIRES[wIdx].color);
           return { sp, m: sp.material };
@@ -345,31 +350,42 @@
       });
     };
 
-    let nextBolt = 0.6;
+    const tmpV = new THREE.Vector3();
+    /* точка пути молнии: вдоль трубки + спиральный вынос наружу (e растёт) */
+    const exitPos = (b, uu, out) => {
+      const p = wireCurves[b.wIdx].getPoint(uu);
+      const spin = b.spin + (uu - b.birthU) * 22;
+      const e = Math.min(0.9, Math.max(-0.03, b.exitBase + (uu - b.birthU) * b.spread));
+      return out.set(p.x + Math.cos(spin) * e, p.y, p.z + Math.sin(spin) * e);
+    };
+
+    let rootsAlive = 0;
 
     const updateBolts = (dt, t) => {
-      /* случайное рождение: очень яркий пучок внизу трубки */
-      if (t > nextBolt) {
-        nextBolt = t + 0.45 + Math.random() * 1.5;
-        spawnBolt();
-        if (Math.random() < 0.3) spawnBolt();
-      }
+      /* молнии живут всегда: погасла — сразу рождается следующая */
+      rootsAlive = bolts.reduce((n, b) => n + (b.depth === 0 ? 1 : 0), 0);
+      if (rootsAlive < 2) { spawnBolt(); if (rootsAlive < 1) spawnBolt(); }
+      else if (Math.random() < 0.25 * dt) spawnBolt();
+
       for (let i = bolts.length - 1; i >= 0; i--) {
         const b = bolts[i];
-        b.u += b.speed * dt;                       // всегда снизу вверх
-        /* затухание ближе к верху и по времени жизни */
-        if (b.u > 0.7) b.bright *= 1 - Math.min(1, 2.2 * dt);
+        b.u += b.speed * dt;                       // снизу вверх
+        /* затухает уже около плашек — в верхней части пути */
+        if (b.u > 0.6) b.bright *= 1 - Math.min(1, 2.6 * dt);
         b.bright *= 1 - 0.1 * dt;
-        /* случайное ветвление: пучок делится на 1–2 дочерних */
-        if (b.depth < 3 && b.u > 0.08 && b.bright > 0.22 && Math.random() < 0.9 * dt) {
+        /* случайное ветвление: пучок делится на 1–2 дочерних, те уходят дальше от трубки */
+        if (b.depth < 3 && b.u > 0.1 && b.bright > 0.22 && Math.random() < 1.0 * dt) {
           const kids = 1 + Math.floor(Math.random() * 2);
+          const curE = Math.min(0.9, Math.max(-0.03, b.exitBase + (b.u - b.birthU) * b.spread));
           for (let k = 0; k < kids; k++) {
             const spread = Math.random() < 0.55
               ? b.wIdx
               : (b.wIdx + (Math.random() < 0.5 ? 1 : WIRES.length - 1)) % WIRES.length;
             spawnBolt({
               wire: spread,
-              u: Math.max(0.02, b.u - 0.008 - Math.random() * 0.02),
+              u: Math.max(0.02, b.u - 0.006 - Math.random() * 0.02),
+              exitBase: curE + 0.05 + Math.random() * 0.07,
+              spread: b.spread * (0.9 + Math.random() * 0.4),
               speed: b.speed * (0.75 + Math.random() * 0.6),
               bright: b.bright * (0.45 + Math.random() * 0.4),
               depth: b.depth + 1,
@@ -377,17 +393,18 @@
           }
           b.bright *= 0.7;                          // энергия делится между пучками
         }
-        /* смерть: рассыпался и погас */
-        if (b.u > 0.985 || b.bright < 0.05) {
+        /* смерть: рассыпался и погас — тут же родится новая (см. выше) */
+        if (b.u > 0.92 || b.bright < 0.05) {
           b.sps.forEach(({ sp }) => { sp.visible = false; });
           bolts.splice(i, 1);
           continue;
         }
-        /* хвост: от яркой головы к тоненькой ниточке */
-        const fadeIn = Math.min(1, b.u / 0.05);
+        /* хвост: от яркой головы к тоненькой ниточке, снаружи трубки */
+        const fadeIn = Math.min(1, (b.u - b.birthU) / 0.04);
         b.sps.forEach(({ sp, m }, j) => {
-          const uu = Math.max(0.001, b.u - j * b.gap);
-          sp.position.copy(wireCurves[b.wIdx].getPoint(uu));
+          const uu = Math.max(b.birthU, b.u - j * b.gap);
+          exitPos(b, uu, tmpV);
+          sp.position.copy(tmpV);
           const f = (1 - j / TRAIL) * b.bright * fadeIn;
           m.opacity = f;
           sp.scale.setScalar(b.size * (1 - (j / TRAIL) * 0.7) * (0.75 + f * 0.5));
