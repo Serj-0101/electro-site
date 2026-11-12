@@ -1,0 +1,477 @@
+/* ============================================================
+   ГЕРМАН — «Наши работы»: спираль карточек вокруг светящегося
+   хребта. Прокрутка раскручивает спираль (Three.js).
+   Без WebGL / при reduce-motion остаётся обычная сетка.
+   ============================================================ */
+(() => {
+  'use strict';
+
+  const section = document.getElementById('works');
+  const stage = document.getElementById('worksStage');
+  const canvas = document.getElementById('works-canvas');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!section || !stage || !canvas || !window.THREE || reduceMotion) return;
+
+  const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+  /* ---------- Данные берём из статической сетки (фолбэк) ---------- */
+  const PALETTES = {
+    'w-1': ['#10303f', '#0a0a0b', '#0d1b26'],
+    'w-2': ['#1d3445', '#0a0a0b', '#2a2108'],
+    'w-3': ['#161624', '#0a0a0b', '#0f3a4d'],
+    'w-4': ['#2a2108', '#0a0a0b', '#10303f'],
+    'w-5': ['#0f3a4d', '#0a0a0b', '#161624'],
+    'w-6': ['#161624', '#1a3444', '#0a0a0b'],
+  };
+  const works = [...document.querySelectorAll('.works__grid .work')].map((el, i) => {
+    const key = [...el.classList].find((c) => /^w-\d$/.test(c)) || 'w-1';
+    const label = (el.querySelector('.work__label') || el).textContent.trim();
+    const [title, ...rest] = label.split(' · ');
+    return { title, sub: rest.join(' · '), href: el.getAttribute('href'), palette: PALETTES[key], seed: i + 1 };
+  });
+  if (!works.length) return;
+
+  /* ---------- Параметры спирали ---------- */
+  const CARDS = 12;
+  const CFG = isMobile
+    ? { radius: 2.8, width: 2.0, stepDeg: 46, dy: 0.5, camZ: 9.5 }
+    : { radius: 4.5, width: 2.6, stepDeg: 38, dy: 0.5, camZ: 11 };
+  const STEP = (CFG.stepDeg * Math.PI) / 180;
+  const CARD_ASPECT = 1.6;
+  const CARD_H = CFG.width / CARD_ASPECT;
+  const CYAN = 0x00d4ff;
+
+  const smoothstep = (a, b, x) => {
+    const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  };
+
+  /* ---------- Процедурная «превьюшка» работы ---------- */
+  const mulberry32 = (a) => () => {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const BOLT = new Path2D('M13 2L4 14h6l-1 8 9-12h-6l1-8z');
+
+  function wrapText(ctx, text, maxWidth) {
+    const words = text.split(' ');
+    const lines = [];
+    let line = '';
+    words.forEach((w) => {
+      const test = line ? `${line} ${w}` : w;
+      if (ctx.measureText(test).width > maxWidth && line) { lines.push(line); line = w; }
+      else line = test;
+    });
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  function makeCardTexture(work, index, maxAniso) {
+    const W = 1024, H = 640;
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const ctx = c.getContext('2d');
+    const rnd = mulberry32(work.seed * 97 + 13);
+
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, work.palette[0]);
+    bg.addColorStop(0.55, work.palette[1]);
+    bg.addColorStop(1, work.palette[2]);
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.035)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= W; x += 32) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = 0; y <= H; y += 32) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+    // «печатная плата»: ломаные под 90° с узлами на концах
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    for (let i = 0; i < 16; i++) {
+      const warm = rnd() < 0.18;
+      const col = warm ? '255,184,0' : '0,212,255';
+      let x = Math.floor(rnd() * (W / 32)) * 32;
+      let y = Math.floor(rnd() * (H / 32)) * 32;
+      let horizontal = rnd() < 0.5;
+      ctx.strokeStyle = `rgba(${col},${0.16 + rnd() * 0.2})`;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      const segs = 3 + Math.floor(rnd() * 5);
+      for (let s = 0; s < segs; s++) {
+        const len = (1 + Math.floor(rnd() * 5)) * 32 * (rnd() < 0.5 ? -1 : 1);
+        if (horizontal) x += len; else y += len;
+        ctx.lineTo(x, y);
+        horizontal = !horizontal;
+      }
+      ctx.stroke();
+      ctx.fillStyle = `rgba(${col},0.55)`;
+      ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // молния с мягким свечением
+    ctx.save();
+    ctx.translate(W * 0.62, H * 0.12);
+    ctx.scale(17, 17);
+    ctx.shadowColor = 'rgba(0,212,255,0.9)';
+    ctx.shadowBlur = 40;
+    ctx.fillStyle = 'rgba(0,212,255,0.16)';
+    ctx.fill(BOLT);
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 0.12;
+    ctx.strokeStyle = 'rgba(0,212,255,0.7)';
+    ctx.stroke(BOLT);
+    ctx.restore();
+
+    // нижняя подложка под текст
+    const shade = ctx.createLinearGradient(0, H * 0.4, 0, H);
+    shade.addColorStop(0, 'rgba(10,10,11,0)');
+    shade.addColorStop(1, 'rgba(10,10,11,0.92)');
+    ctx.fillStyle = shade;
+    ctx.fillRect(0, H * 0.4, W, H * 0.6);
+
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#00D4FF';
+    ctx.font = '600 26px Manrope, system-ui, sans-serif';
+    ctx.fillText(String((index % works.length) + 1).padStart(2, '0'), 56, 74);
+
+    ctx.fillStyle = '#F5F5F7';
+    ctx.font = '600 46px Unbounded, system-ui, sans-serif';
+    const lines = wrapText(ctx, work.title, W - 112).slice(0, 2);
+    const subY = H - 52;
+    const titleY = subY - 22 - (lines.length - 1) * 58;
+    lines.forEach((l, i) => ctx.fillText(l, 56, titleY - 6 + i * 58 + 0));
+    if (work.sub) {
+      ctx.fillStyle = '#9A9AA5';
+      ctx.font = '500 28px Manrope, system-ui, sans-serif';
+      ctx.fillText(work.sub, 56, subY + 8);
+    }
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(1.5, 1.5, W - 3, H - 3);
+
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = maxAniso;
+    return tex;
+  }
+
+  function makeGlowTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d');
+    const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(0.35, 'rgba(255,255,255,0.45)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 64, 64);
+    return new THREE.CanvasTexture(c);
+  }
+
+  /* ---------- Старт после загрузки шрифтов (текст рисуется на canvas) ---------- */
+  const fontsReady = document.fonts && document.fonts.load
+    ? Promise.all([
+        document.fonts.load('600 46px Unbounded', 'Квартира-новостройка'),
+        document.fonts.load('500 28px Manrope', 'проводка под ключ'),
+      ]).catch(() => {})
+    : Promise.resolve();
+
+  fontsReady.then(init);
+
+  function init() {
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    } catch (err) {
+      return;
+    }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    camera.position.set(0, 0, CFG.camZ);
+
+    const glowTex = makeGlowTexture();
+    const maxAniso = renderer.capabilities.getMaxAnisotropy();
+
+    const root = new THREE.Group();   // реагирует на мышь
+    const helix = new THREE.Group();  // вращается и «скользит» от прокрутки
+    scene.add(root);
+    root.add(helix);
+
+    /* ----- Хребет: ядро + два слоя свечения, неподвижный ----- */
+    const SPINE_H = 60;
+    const spine = new THREE.Group();
+    root.add(spine);
+    spine.add(new THREE.Mesh(
+      new THREE.CylinderGeometry(0.04, 0.04, SPINE_H, 10, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0xbff4ff }),
+    ));
+    [[0.16, 0.16], [0.5, 0.05]].forEach(([r, o]) => {
+      spine.add(new THREE.Mesh(
+        new THREE.CylinderGeometry(r, r, SPINE_H, 24, 1, true),
+        new THREE.MeshBasicMaterial({
+          color: CYAN, transparent: true, opacity: o,
+          blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+        }),
+      ));
+    });
+
+    // Поток искр вдоль хребта
+    const SPARKS = isMobile ? 90 : 220;
+    const sparkPos = new Float32Array(SPARKS * 3);
+    const sparkSpeed = new Float32Array(SPARKS);
+    for (let i = 0; i < SPARKS; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 0.06 + Math.random() * 0.35;
+      sparkPos[i * 3] = Math.cos(a) * r;
+      sparkPos[i * 3 + 1] = (Math.random() - 0.5) * 14;
+      sparkPos[i * 3 + 2] = Math.sin(a) * r;
+      sparkSpeed[i] = 0.6 + Math.random() * 1.8;
+    }
+    const sparkGeo = new THREE.BufferGeometry();
+    sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
+    const sparks = new THREE.Points(sparkGeo, new THREE.PointsMaterial({
+      size: 0.09, map: glowTex, color: 0x9fefff, transparent: true, opacity: 0.9,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
+    root.add(sparks);
+
+    /* ----- Спираль: рельса + карточки + спицы к хребту ----- */
+    const railPts = [];
+    const RAIL_SEGMENTS = 260;
+    for (let i = 0; i <= RAIL_SEGMENTS; i++) {
+      const k = -1 + (i / RAIL_SEGMENTS) * (CARDS + 1);
+      railPts.push(new THREE.Vector3(Math.sin(k * STEP) * CFG.radius, -k * CFG.dy, Math.cos(k * STEP) * CFG.radius));
+    }
+    const rail = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(railPts),
+      new THREE.LineBasicMaterial({ color: CYAN, transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false }),
+    );
+    helix.add(rail);
+
+    const cards = [];
+    const spokeGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, 0.12), new THREE.Vector3(0, 0, CFG.radius * 0.96),
+    ]);
+    const arc = CFG.width / CFG.radius;
+    const cardGeo = new THREE.CylinderGeometry(CFG.radius, CFG.radius, CARD_H, 28, 1, true, -arc / 2, arc);
+    const textures = works.map((w, i) => makeCardTexture(w, i, maxAniso));
+
+    for (let i = 0; i < CARDS; i++) {
+      const pivot = new THREE.Group();
+      pivot.rotation.y = i * STEP;
+      pivot.position.y = -i * CFG.dy;
+
+      const mat = new THREE.MeshBasicMaterial({
+        map: textures[i % works.length], side: THREE.DoubleSide, transparent: true,
+      });
+      const mesh = new THREE.Mesh(cardGeo, mat);
+      mesh.userData.index = i;
+      pivot.add(mesh);
+
+      pivot.add(new THREE.Line(spokeGeo, new THREE.LineBasicMaterial({
+        color: CYAN, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false,
+      })));
+
+      const node = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: glowTex, color: CYAN, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+      }));
+      node.scale.setScalar(0.7);
+      pivot.add(node);
+
+      helix.add(pivot);
+      cards.push({ pivot, mesh, mat, node, angle: i * STEP, y: -i * CFG.dy, scale: 1 });
+    }
+
+    /* ----- Космическая пыль вокруг ----- */
+    const DUST = isMobile ? 220 : 520;
+    const dustPos = new Float32Array(DUST * 3);
+    for (let i = 0; i < DUST; i++) {
+      dustPos[i * 3] = (Math.random() - 0.5) * 26;
+      dustPos[i * 3 + 1] = (Math.random() - 0.5) * 14;
+      dustPos[i * 3 + 2] = (Math.random() - 0.5) * 16 - 2;
+    }
+    const dustGeo = new THREE.BufferGeometry();
+    dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+    const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
+      size: 0.05, map: glowTex, color: 0x6fdcff, transparent: true, opacity: 0.45,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
+    scene.add(dust);
+
+    /* ----- Интерфейс ----- */
+    const ui = {
+      index: document.getElementById('worksIndex'),
+      total: document.getElementById('worksTotal'),
+      name: document.getElementById('worksName'),
+      sub: document.getElementById('worksSub'),
+      link: document.getElementById('worksLink'),
+      hint: document.getElementById('worksHint'),
+      bar: document.getElementById('worksProgress'),
+    };
+    if (ui.total) ui.total.textContent = String(works.length).padStart(2, '0');
+
+    // Для скринридеров и клавиатуры — список ссылок
+    const list = document.createElement('ul');
+    list.className = 'sr-only';
+    works.forEach((w) => {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = w.href;
+      a.textContent = w.sub ? `${w.title} — ${w.sub}` : w.title;
+      li.appendChild(a);
+      list.appendChild(li);
+    });
+    stage.appendChild(list);
+
+    let shownWork = -1;
+    const showWork = (n) => {
+      if (n === shownWork) return;
+      const first = shownWork === -1;
+      shownWork = n;
+      const w = works[n];
+      const apply = () => {
+        if (ui.index) ui.index.textContent = String(n + 1).padStart(2, '0');
+        if (ui.name) ui.name.textContent = w.title;
+        if (ui.sub) ui.sub.textContent = w.sub;
+        if (ui.link) { ui.link.href = w.href; ui.link.classList.remove('is-swapping'); }
+      };
+      if (first || !ui.link) { apply(); return; }
+      ui.link.classList.add('is-swapping');
+      setTimeout(apply, 180);
+    };
+    showWork(0);
+
+    /* ----- Мышь, наведение, клик ----- */
+    const ring = document.getElementById('cursorRing');
+    const pointer = new THREE.Vector2(9, 9);
+    let mx = 0, my = 0, tmx = 0, tmy = 0;
+    let hovered = -1;
+    const raycaster = new THREE.Raycaster();
+
+    canvas.addEventListener('pointermove', (e) => {
+      const r = canvas.getBoundingClientRect();
+      pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      tmx = pointer.x; tmy = pointer.y;
+    }, { passive: true });
+    canvas.addEventListener('pointerleave', () => { pointer.set(9, 9); tmx = 0; tmy = 0; });
+    canvas.addEventListener('click', () => {
+      if (hovered > -1) window.location.href = works[hovered % works.length].href;
+    });
+
+    /* ----- Размер ----- */
+    const resize = () => {
+      const w = canvas.clientWidth || window.innerWidth;
+      const h = canvas.clientHeight || window.innerHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.position.z = camera.aspect < 0.8 ? Math.max(CFG.camZ, 9.5) : CFG.camZ;
+      camera.updateProjectionMatrix();
+    };
+    window.addEventListener('resize', resize);
+    resize();
+
+    /* ----- Прогресс прокрутки внутри секции ----- */
+    const getTarget = () => {
+      const rect = stage.getBoundingClientRect();
+      const total = stage.offsetHeight - window.innerHeight;
+      return total > 0 ? Math.min(1, Math.max(0, -rect.top / total)) : 0;
+    };
+    let progress = getTarget();
+    let visible = false;
+    let rafId = 0;
+
+    new IntersectionObserver((entries) => {
+      visible = entries[0].isIntersecting;
+      if (visible && !rafId && !document.hidden) loop();
+    }, { rootMargin: '10% 0px' }).observe(stage);
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && visible && !rafId) loop();
+    });
+
+    const clock = new THREE.Clock();
+
+    function loop() {
+      if (!visible || document.hidden) { rafId = 0; return; }
+      rafId = requestAnimationFrame(loop);
+
+      const t = clock.getElapsedTime();
+      const target = getTarget();
+      const velocity = target - progress;
+      progress += velocity * 0.075;
+
+      const f = progress * (CARDS - 1);                 // «номер» карточки в центре
+      helix.rotation.y = -f * STEP;
+      helix.position.y = f * CFG.dy;
+      helix.rotation.z = THREE.MathUtils.clamp(velocity * 6, -0.18, 0.18);
+
+      mx += (tmx - mx) * 0.05;
+      my += (tmy - my) * 0.05;
+      root.rotation.y = mx * 0.12;
+      root.rotation.x = my * 0.06;
+      dust.rotation.y = t * 0.02 + progress * 0.8;
+      dust.position.y = progress * 1.5;
+
+      // искры бегут вверх по хребту
+      const arr = sparkGeo.attributes.position.array;
+      for (let i = 0; i < SPARKS; i++) {
+        let y = arr[i * 3 + 1] + sparkSpeed[i] * 0.016 + velocity * 4;
+        if (y > 7) y -= 14; else if (y < -7) y += 14;
+        arr[i * 3 + 1] = y;
+      }
+      sparkGeo.attributes.position.needsUpdate = true;
+
+      // яркость и прозрачность каждой карточки по положению
+      const activeFloat = f;
+      cards.forEach((c, i) => {
+        const worldAngle = c.angle + helix.rotation.y;
+        const facing = Math.cos(worldAngle);                      // 1 — лицом к камере
+        const worldY = c.y + helix.position.y;
+        const bright = 0.22 + 0.78 * smoothstep(-0.35, 0.95, facing);
+        c.mat.color.setScalar(bright);
+        c.mat.opacity = 1 - smoothstep(2.3, 3.4, Math.abs(worldY));
+        c.mesh.visible = c.mat.opacity > 0.01;
+        c.node.material.opacity = 0.35 + 0.65 * Math.max(0, 1 - Math.abs(activeFloat - i) * 0.6);
+        const goal = hovered === i ? 1.07 : 1;
+        c.scale += (goal - c.scale) * 0.12;
+        c.mesh.scale.set(c.scale, c.scale, c.scale);
+      });
+
+      // наведение: берём только карточки, повёрнутые к камере
+      hovered = -1;
+      if (Math.abs(pointer.x) <= 1) {
+        raycaster.setFromCamera(pointer, camera);
+        const hits = raycaster.intersectObjects(cards.filter((c) => c.mesh.visible).map((c) => c.mesh), false);
+        for (const h of hits) {
+          const idx = h.object.userData.index;
+          const wa = cards[idx].angle + helix.rotation.y;
+          if (Math.cos(wa) > 0.3) { hovered = idx; break; }
+        }
+      }
+      canvas.style.cursor = hovered > -1 ? 'pointer' : '';
+      if (ring) ring.classList.toggle('cursor-ring--hover', hovered > -1);
+
+      // подпись текущей работы
+      const active = Math.min(CARDS - 1, Math.max(0, Math.round(f)));
+      showWork(active % works.length);
+      if (ui.bar) ui.bar.style.transform = `scaleY(${progress.toFixed(4)})`;
+      if (ui.hint) ui.hint.classList.toggle('is-hidden', progress > 0.03);
+
+      // лёгкое «дыхание» свечения хребта
+      spine.children[1].material.opacity = 0.14 + Math.sin(t * 2.2) * 0.03 + (Math.random() < 0.01 ? 0.1 : 0);
+
+      renderer.render(scene, camera);
+    }
+
+    section.classList.add('works--3d');
+    resize();
+    visible = true;
+    loop();
+  }
+})();

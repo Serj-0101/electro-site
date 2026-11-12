@@ -501,6 +501,156 @@ body.is-booting .hero__content > * {
   color: var(--text);
 }
 
+/* ---------- Работы: 3D-спираль вокруг светящегося хребта ---------- */
+.works-stage { display: none; }
+.works--3d { padding: 0; }
+.works--3d .works__static { display: none; }
+.works--3d .works-stage { display: block; position: relative; height: 560vh; }
+.works-stage__sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 50%, #0d1b26 0%, var(--bg) 70%);
+}
+#works-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: pan-y;
+}
+.works-stage__fade {
+  position: absolute;
+  left: 0; right: 0;
+  height: 22vh;
+  pointer-events: none;
+}
+.works-stage__fade--top { top: 0; background: linear-gradient(var(--bg), transparent); }
+.works-stage__fade--bottom { bottom: 0; background: linear-gradient(transparent, var(--bg)); }
+
+.works-stage__head {
+  position: absolute;
+  top: 104px; left: 0;
+  padding: 0 clamp(22px, 4vw, 56px);
+  pointer-events: none;
+}
+.works-stage__head .kicker { margin-bottom: 10px; }
+.works-stage__title {
+  font-family: var(--font-head);
+  font-weight: 600;
+  font-size: clamp(28px, 4.5vw, 52px);
+  line-height: 1.15;
+}
+
+.works-stage__info {
+  position: absolute;
+  left: 0; bottom: clamp(28px, 6vh, 64px);
+  padding: 0 clamp(22px, 4vw, 56px);
+  display: flex;
+  align-items: flex-end;
+  gap: 22px;
+  pointer-events: none;
+}
+.works-stage__count {
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: clamp(44px, 7vw, 96px);
+  line-height: 0.9;
+  color: var(--accent);
+  text-shadow: 0 0 40px rgba(0, 212, 255, 0.45);
+}
+.works-stage__count small {
+  font-size: 0.28em;
+  font-weight: 400;
+  margin-left: 8px;
+  color: var(--text-dim);
+  text-shadow: none;
+}
+.works-stage__link {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: min(46vw, 420px);
+  padding-bottom: 6px;
+  pointer-events: auto;
+  transition: opacity 0.35s, transform 0.5s var(--ease);
+}
+.works-stage__link.is-swapping { opacity: 0; transform: translateY(10px); }
+.works-stage__name {
+  font-family: var(--font-head);
+  font-weight: 600;
+  font-size: clamp(15px, 1.5vw, 20px);
+  line-height: 1.25;
+}
+.works-stage__sub { color: var(--text-dim); font-size: 14px; }
+.works-stage__link:hover .works-stage__name { color: var(--accent); }
+
+.works-stage__hint {
+  position: absolute;
+  right: clamp(22px, 4vw, 56px);
+  bottom: clamp(28px, 6vh, 64px);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  pointer-events: none;
+  transition: opacity 0.5s;
+}
+.works-stage__hint.is-hidden { opacity: 0; }
+.works-stage__hint i {
+  display: block;
+  width: 1px; height: 44px;
+  background: linear-gradient(var(--accent), transparent);
+  animation: works-hint 1.8s var(--ease) infinite;
+  transform-origin: top;
+}
+@keyframes works-hint {
+  0% { transform: scaleY(0); }
+  60% { transform: scaleY(1); opacity: 1; }
+  100% { transform: scaleY(1); opacity: 0; }
+}
+
+.works-stage__progress {
+  position: absolute;
+  top: 50%; right: clamp(14px, 2vw, 28px);
+  width: 2px; height: 140px;
+  transform: translateY(-50%);
+  background: var(--line);
+  border-radius: 2px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.works-stage__progress i {
+  display: block;
+  width: 100%; height: 100%;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+  transform-origin: top;
+  transform: scaleY(0);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 768px) {
+  .works-stage__head { top: 88px; }
+  .works-stage__hint { display: none; }
+  .works-stage__info { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .works-stage__link { max-width: 80vw; }
+}
+
 /* ---------- Контакты и форма ---------- */
 .contacts__inner {
   display: grid;
