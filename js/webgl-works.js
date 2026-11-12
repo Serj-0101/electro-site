@@ -454,19 +454,22 @@
       const segs = [];
       let maxT = 1;
 
-      const addPath = (a, b, depth, t0) => {
+      /* рекурсивный рост ветви: свой бюджет сегментов, чтобы не съесть канал */
+      const addPath = (a, b, depth, t0, budget) => {
+        const startLen = segs.length;
         const len = a.distanceTo(b);
         const pts = jagged(a, b, LEVELS[depth], len * (depth === 0 ? 0.11 : 0.15));
         const ts = [t0];
         for (let i = 1; i < pts.length; i++) ts.push(ts[i - 1] + pts[i].distanceTo(pts[i - 1]));
+        const limit = startLen + budget;
         for (let i = 0; i < pts.length - 1; i++) {
-          if (segs.length >= MAX_SEG) return;
+          if (segs.length >= Math.min(MAX_SEG, limit)) return;
           segs.push({ a: pts[i], b: pts[i + 1], d: depth, ta: ts[i], tb: ts[i + 1] });
         }
         maxT = Math.max(maxT, ts[ts.length - 1]);
         if (BRANCH_P[depth] === 0) return;
         for (let i = 1; i < pts.length - 1; i++) {
-          if (segs.length > MAX_SEG * (depth < 1 ? 0.92 : 0.8)) break;
+          if (segs.length >= limit - 2) break;
           if (rnd() >= BRANCH_P[depth]) continue;
           const dirn = pts[i + 1].clone().sub(pts[i - 1]).normalize();
           const sideV = new THREE.Vector3(rnd() - 0.5, (rnd() - 0.5) * (depth === 0 ? 0.4 : 1), (rnd() - 0.5) * 1.0).normalize();
@@ -474,18 +477,19 @@
           if (depth === 0) bd.y = Math.abs(bd.y) + 0.12;   // ветви основного канала тянутся вверх
           bd.normalize();
           const blen = len * (0.6 + rnd() * 0.9) * (depth === 0 ? 1 : 0.85);
-          addPath(pts[i], pts[i].clone().addScaledVector(bd, blen), depth + 1, ts[i]);
+          addPath(pts[i], pts[i].clone().addScaledVector(bd, blen), depth + 1, ts[i], budget * 0.5);
         }
       };
 
       /* главный канал: вдоль трубки снизу вверх — рождение внутри, отрыв наружу,
-         спиральный обход и дрожание; путь строится по K опорным точкам кривой */
+         спиральный обход и дрожание. Сначала строится ЦЕЛИКОМ (гарантированная
+         длина — свой бюджет), ветви добавляются только из оставшихся сегментов */
       const wIdx = Math.floor(rnd() * WIRES.length);
       const curve = wireCurves[wIdx];
       const K = isMobile ? 10 : 14;
       const u0 = 0.0, u1 = 1.0;              // вся длина трубки — на весь экран
       const spin = rnd() * Math.PI * 2;
-      let prev = null, prevT = 0, firstPt = null, midPt = null, lastPt = null;
+      const pts = [];
       for (let k = 0; k <= K; k++) {
         const u = u0 + (u1 - u0) * (k / K);
         const p = curve.getPoint(u);
@@ -497,12 +501,35 @@
         p.x += (rnd() - 0.5) * 0.2;
         p.y += (rnd() - 0.5) * 0.16;
         p.z += (rnd() - 0.5) * 0.2;
-        const tt = (k / K) * (u1 - u0) * BRAID_H * 1.1;
-        if (k > 0) addPath(prev, p, 0, prevT);
-        if (k === 0) firstPt = p;
-        if (k === Math.floor(K / 2)) midPt = p;
-        lastPt = p;
-        prev = p; prevT = tt;
+        pts.push(p);
+      }
+      const CHANNEL_BUDGET = Math.floor(MAX_SEG * 0.55);   // главный канал — половина бюджета
+      let prevT = 0, firstPt = pts[0], midPt = pts[Math.floor(K / 2)];
+      const mainTs = [0];
+      for (let k = 0; k < K; k++) {
+        const a = pts[k], b2 = pts[k + 1];
+        const sub = jagged(a, b2, LEVELS[0], a.distanceTo(b2) * 0.11);
+        for (let i = 0; i < sub.length - 1; i++) {
+          if (segs.length >= CHANNEL_BUDGET) break;
+          segs.push({ a: sub[i], b: sub[i + 1], d: 0, ta: prevT, tb: prevT + sub[i].distanceTo(sub[i + 1]) });
+          prevT += sub[i].distanceTo(sub[i + 1]);
+        }
+        mainTs.push(prevT);
+        maxT = Math.max(maxT, prevT);
+      }
+      /* ветви — из оставшегося бюджета, вверх и в стороны */
+      const branchBudget = MAX_SEG - CHANNEL_BUDGET;
+      for (let i = 1; i < pts.length - 1; i++) {
+        if (segs.length >= MAX_SEG - 4) break;
+        if (rnd() >= BRANCH_P[0]) continue;
+        const dirn = pts[i + 1].clone().sub(pts[i - 1]).normalize();
+        const sideV = new THREE.Vector3(rnd() - 0.5, (rnd() - 0.5) * 0.4, (rnd() - 0.5) * 1.0).normalize();
+        const bd = dirn.multiplyScalar(0.5).addScaledVector(sideV, 1.1);
+        bd.y = Math.abs(bd.y) + 0.12;                      // ветви тянутся вверх
+        bd.normalize();
+        const blen = pts[i + 1].distanceTo(pts[i]) * (0.6 + rnd() * 0.9);
+        addPath(pts[i], pts[i].clone().addScaledVector(bd, blen), 1, mainTs[i],
+          Math.max(60, branchBudget - (segs.length - CHANNEL_BUDGET)));
       }
 
       const [gr, gg, gb] = GLOW_COLORS[Math.floor(rnd() * GLOW_COLORS.length)];
