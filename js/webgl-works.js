@@ -53,9 +53,11 @@
 
   /* ---------- Параметры спирали ---------- */
   const CARDS = works.length;
+  /* dy — вертикальный шаг: должен быть БОЛЬШЕ высоты плашки (width / 1.6),
+     чтобы нижний край плашки был выше верхнего края следующей */
   const CFG = isMobile
-    ? { radius: 2.8, width: 2.0, stepDeg: 38, dy: 0.5, camZ: 9.5 }
-    : { radius: 4.5, width: 2.6, stepDeg: 30, dy: 0.5, camZ: 11 };
+    ? { radius: 2.8, width: 2.0, stepDeg: 38, dy: 1.6, camZ: 9.5 }
+    : { radius: 4.5, width: 2.6, stepDeg: 30, dy: 2.0, camZ: 11 };
   const STEP = (CFG.stepDeg * Math.PI) / 180;
   const CARD_ASPECT = 1.6;
   const CARD_H = CFG.width / CARD_ASPECT;
