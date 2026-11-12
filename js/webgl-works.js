@@ -232,9 +232,9 @@
     const PERIOD = 4;           // расстояние между импульсами
     const WRAP = 16;            // кратно PERIOD
     const WIRES = [
-      { phase: 0,     color: 0x00d4ff, speed: 2.4 },
-      { phase: 1 / 3, color: 0x7fe9ff, speed: -1.9 },
-      { phase: 2 / 3, color: 0xffb800, speed: 2.9 },
+      { phase: 0,     color: 0xdd4a4a, speed: 2.4 },              // слегка красная
+      { phase: 1 / 3, color: 0x4a7bdd, speed: -1.9 },             // слегка синяя
+      { phase: 2 / 3, color: 0xd9b93a, speed: 2.9, stripe: 1 },   // слегка жёлтая + тонкая зелёная полоса
     ];
     const wireAngle = (y, w) => w.phase * Math.PI * 2 + y * TWIST;
     const wireRadius = (y, w) => BRAID_R + 0.14 * Math.sin(y * 0.9 + w.phase * 6);
@@ -246,16 +246,19 @@
     const wireVertex = `
       varying vec3 vN;
       varying float vY;
+      varying vec2 vUv;
       void main() {
         vN = normalize(normalMatrix * normal);
         vY = position.y;
+        vUv = uv;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }`;
     const wireFragment = `
-      uniform float uTime, uBase, uGain, uPhase, uSpeed, uPeriod, uWidth;
+      uniform float uTime, uBase, uGain, uPhase, uSpeed, uPeriod, uWidth, uStripe;
       uniform vec3 uColor;
       varying vec3 vN;
       varying float vY;
+      varying vec2 vUv;
       void main() {
         float s = fract((vY - uSpeed * uTime) / uPeriod + uPhase);
         float d = (s - 0.5) * uPeriod;
@@ -264,6 +267,10 @@
         float rim = 1.0 - abs(vN.z);
         float a = uBase * (0.45 + 0.9 * rim) + pulse * uGain;
         vec3 col = mix(uColor, vec3(1.0), pulse * 0.7) * (1.0 + pulse * 1.4);
+        /* тонкая зелёная полоса вдоль всей трубки (uStripe включает) */
+        float stripe = uStripe * (1.0 - smoothstep(0.03, 0.055, abs(vUv.y - 0.5)));
+        col = mix(col, vec3(0.25, 0.9, 0.45) * (1.0 + pulse * 1.2), stripe);
+        a = max(a, stripe * 0.85);
         gl_FragColor = vec4(col, clamp(a, 0.0, 1.0));
       }`;
 
@@ -272,6 +279,7 @@
         uTime: { value: 0 }, uBase: { value: base }, uGain: { value: gain },
         uPhase: { value: w.phase }, uSpeed: { value: w.speed }, uPeriod: { value: PERIOD },
         uWidth: { value: width }, uColor: { value: new THREE.Color(w.color) },
+        uStripe: { value: w.stripe || 0 },
       };
       wireUniforms.push(u);
       return new THREE.ShaderMaterial({
