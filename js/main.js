@@ -160,17 +160,32 @@
     };
     const stop = () => { bgAudio.pause(); playing = false; setIcon(false); };
 
-    let savedOn = false;
-    try { savedOn = localStorage.getItem('herman-sound') === 'on'; } catch (e) {}
+    let savedOn = true;   // музыка играет по умолчанию
+    try {
+      const s = localStorage.getItem('herman-sound');
+      if (s !== null) savedOn = s === 'on';
+    } catch (e) {}
     setIcon(savedOn);
+    let unlocked = false;
 
     soundBtn.addEventListener('click', () => {
-      playing ? stop() : start();
-      try { localStorage.setItem('herman-sound', playing ? 'on' : 'off'); } catch (e) {}
+      if (playing) { stop(); savedOn = false; }
+      else { start(); savedOn = playing; if (playing) unlocked = true; }
+      try { localStorage.setItem('herman-sound', savedOn ? 'on' : 'off'); } catch (e) {}
     });
-    /* автозапуск после первого жеста пользователя, если сохранено «вкл» */
+
+    /* если браузер блокирует автозапуск — включаем после первого касания/клика */
     if (savedOn) {
-      window.addEventListener('pointerdown', () => { if (!playing) start(); }, { once: true });
+      start();
+      const unlock = () => {
+        if (unlocked || !savedOn) return;
+        if (playing) { unlocked = true; return; }
+        start();
+        unlocked = playing;
+      };
+      window.addEventListener('pointerdown', unlock);
+      window.addEventListener('touchstart', unlock, { passive: true });
+      window.addEventListener('keydown', unlock);
     }
   }
 
