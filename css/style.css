@@ -817,12 +817,9 @@ body.is-booting .hero__content > * {
   .reveal { opacity: 1; transform: none; }
 }
 
-/* ---------- Фиксированная CTA-кнопка (почти прозрачная) ---------- */
+/* ---------- CTA-кнопка «Вызвать электрика» (почти прозрачная, в шапке) ---------- */
 .cta-fixed {
-  position: fixed;
-  top: 20px;
-  right: 96px;
-  z-index: 60; /* ниже полноэкранного меню (90) — прячется под ним */
+  display: inline-block;
   padding: 12px 26px;
   font-family: var(--font-head);
   font-size: 12px;
@@ -836,7 +833,7 @@ body.is-booting .hero__content > * {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
-  will-change: transform;
+  white-space: nowrap;
 }
 .cta-fixed:hover {
   background: rgba(0, 212, 255, 0.14);
@@ -845,10 +842,11 @@ body.is-booting .hero__content > * {
 }
 
 @media (max-width: 900px) {
-  .cta-fixed { right: 80px; }
+  .cta-fixed { padding: 10px 20px; font-size: 11px; }
 }
 @media (max-width: 520px) {
-  .cta-fixed { right: 122px; top: 18px; padding: 8px 14px; font-size: 9px; }
+  .cta-fixed { padding: 8px 14px; font-size: 9px; letter-spacing: 0.04em; }
+  .header__controls { gap: 10px; }
   .sound-btn { width: 38px; height: 38px; }
   .sound-btn__icon { width: 17px; height: 17px; }
   .works--3d .works-stage { height: 900vh; }
