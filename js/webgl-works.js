@@ -305,13 +305,13 @@
     });
 
     /* ----- Настоящие молнии: фрактальные разряды с хаотичным ветвлением ----- */
-    const MAX_SEG = isMobile ? 520 : 760;
-    const CORE_W = [0.021, 0.0135, 0.0095, 0.0065];   // полуширина белой жилы по поколениям
-    const GLOW_K = [10, 8, 6.5, 5.5];                 // во сколько раз шире ореол
-    const CORE_A = [1, 0.85, 0.7, 0.55];
-    const GLOW_A = [0.34, 0.26, 0.2, 0.15];
-    const LEVELS = [5, 4, 3, 2];                      // глубина дробления пути
-    const BRANCH_P = [0.3, 0.2, 0.12, 0];             // шанс ветви в каждой вершине
+    const MAX_SEG = isMobile ? 1100 : 1600;
+    const CORE_W = [0.021, 0.0135, 0.0095, 0.0065, 0.005];   // полуширина белой жилы по поколениям
+    const GLOW_K = [10, 8, 6.5, 5.5, 5];                 // во сколько раз шире ореол
+    const CORE_A = [1, 0.85, 0.7, 0.55, 0.45];
+    const GLOW_A = [0.34, 0.26, 0.2, 0.15, 0.12];
+    const LEVELS = [5, 4, 3, 2, 2];                      // глубина дробления пути
+    const BRANCH_P = [0.45, 0.35, 0.28, 0.18, 0];        // шанс ветви в каждой вершине
     const GLOW_COLORS = [[0.45, 0.62, 1], [0.62, 0.45, 1], [0.3, 0.78, 1]];
     const GROW = 0.16;                                // время пробоя сверху вниз, с
     const BOLT_Y0 = 6.6, BOLT_Y1 = -6.6;
@@ -469,11 +469,11 @@
           if (segs.length > MAX_SEG * (depth < 1 ? 0.92 : 0.8)) break;
           if (rnd() >= BRANCH_P[depth]) continue;
           const dirn = pts[i + 1].clone().sub(pts[i - 1]).normalize();
-          const sideV = new THREE.Vector3(rnd() - 0.5, (rnd() - 0.5) * (depth === 0 ? 0.4 : 1), (rnd() - 0.5) * 0.6).normalize();
-          const bd = dirn.multiplyScalar(0.55).addScaledVector(sideV, 0.95);
+          const sideV = new THREE.Vector3(rnd() - 0.5, (rnd() - 0.5) * (depth === 0 ? 0.4 : 1), (rnd() - 0.5) * 1.0).normalize();
+          const bd = dirn.multiplyScalar(0.5).addScaledVector(sideV, 1.1);
           if (depth === 0) bd.y = Math.abs(bd.y) + 0.12;   // ветви основного канала тянутся вверх
           bd.normalize();
-          const blen = len * (0.14 + rnd() * 0.3) * (depth === 0 ? 1 : 0.8);
+          const blen = len * (0.6 + rnd() * 0.9) * (depth === 0 ? 1 : 0.85);
           addPath(pts[i], pts[i].clone().addScaledVector(bd, blen), depth + 1, ts[i]);
         }
       };
@@ -490,13 +490,13 @@
         const u = u0 + (u1 - u0) * (k / K);
         const p = curve.getPoint(u);
         /* вынос наружу: рождение внутри трубки → спиральный отрыв к поверхности и дальше */
-        const e = -0.03 + (k / K) * (0.24 + rnd() * 0.1) + Math.sin(u * 47.9 + k * 3.1) * 0.05;
+        const e = -0.03 + (k / K) * (0.5 + rnd() * 0.2) + Math.sin(u * 47.9 + k * 3.1) * 0.07;
         p.x += Math.cos(spin + u * 16) * e;
         p.z += Math.sin(spin + u * 16) * e;
         /* дрожание канала — рваная молния */
-        p.x += (rnd() - 0.5) * 0.12;
-        p.y += (rnd() - 0.5) * 0.1;
-        p.z += (rnd() - 0.5) * 0.12;
+        p.x += (rnd() - 0.5) * 0.2;
+        p.y += (rnd() - 0.5) * 0.16;
+        p.z += (rnd() - 0.5) * 0.2;
         const tt = (k / K) * (u1 - u0) * BRAID_H * 1.1;
         if (k > 0) addPath(prev, p, 0, prevT);
         if (k === 0) firstPt = p;
@@ -563,7 +563,7 @@
           s.mesh.visible = false;
           s.haloTop.visible = false;
           s.haloMid.visible = false;
-          s.wait = 0.4 + rnd() * 1.4;
+          s.wait = 0.3 + rnd() * 1.0;
         }
       });
     };
