@@ -278,7 +278,7 @@
       const u = {
         uTime: { value: 0 }, uBase: { value: base }, uGain: { value: gain },
         uPhase: { value: w.phase }, uSpeed: { value: w.speed }, uPeriod: { value: PERIOD },
-        uWidth: { value: width }, uColor: { value: new THREE.Color(w.color) },
+        uWidth: { value: width }, uColor: { value: new THREE.Color().setHex(w.color, THREE.LinearSRGBColorSpace) },
         uStripe: { value: w.stripe || 0 },
       };
       wireUniforms.push(u);
