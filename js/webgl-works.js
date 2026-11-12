@@ -313,7 +313,7 @@
     const LEVELS = [5, 4, 3, 2, 2];                      // глубина дробления пути
     const BRANCH_P = [0.45, 0.35, 0.28, 0.18, 0];        // шанс ветви в каждой вершине
     const GLOW_COLORS = [[0.45, 0.62, 1], [0.62, 0.45, 1], [0.3, 0.78, 1]];
-    const GROW = 0.24;                                // время пробоя снизу вверх, с
+    const GROW = 0.96;                                // время пробоя снизу вверх ~1 с (жизнь ×4)
     const BOLT_Y0 = 6.6, BOLT_Y1 = -6.6;
 
     const lightningVertex = `
@@ -523,8 +523,8 @@
       slot.maxT = maxT;
       slot.age = 0;
       slot.active = true;
-      slot.peaks = [0.22 + rnd() * 0.1, 0.45 + rnd() * 0.15];
-      if (rnd() < 0.55) slot.peaks.push(0.7 + rnd() * 0.12);
+      slot.peaks = [0.88 + rnd() * 0.4, 1.8 + rnd() * 0.6];
+      if (rnd() < 0.55) slot.peaks.push(2.8 + rnd() * 0.5);
       slot.mesh.visible = true;
       slot.haloTop.visible = true;
       slot.haloMid.visible = true;
@@ -549,16 +549,16 @@
           f = 1.15;
         } else {
           const a = s.age - GROW;
-          f = 0.85 * Math.exp(-a * 1.5);
+          f = 0.85 * Math.exp(-a * 0.375);
           s.peaks.forEach((p) => { if (a > p) f += 0.9 * Math.exp(-(a - p) * 13); });
           f *= 0.88 + rnd() * 0.24;
-          f *= 1 - smoothstep(1.5, 1.9, a);
+          f *= 1 - smoothstep(6.0, 7.6, a);
         }
         s.uniforms.uFlash.value = f;
         s.haloTop.material.opacity = Math.min(1, f * 0.34);
         s.haloMid.material.opacity = Math.min(1, f * 0.11);
 
-        if (s.age > GROW + 1.9) {
+        if (s.age > GROW + 7.6) {
           s.active = false;
           s.mesh.visible = false;
           s.haloTop.visible = false;
