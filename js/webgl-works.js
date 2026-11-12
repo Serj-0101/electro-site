@@ -304,120 +304,247 @@
       braid.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 380, 0.15, 8, false), makeWireMaterial(w, 0.07, 0.04, 0.7)));
     });
 
-    /* Пул спрайтов: головы и хвосты молний */
-    const BOLT_POOL = 240;
-    const boltSprites = [];
-    for (let i = 0; i < BOLT_POOL; i++) {
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: glowTex, color: 0xffffff, transparent: true, opacity: 0,
-        blending: THREE.AdditiveBlending, depthWrite: false,
-      }));
-      sp.visible = false;
-      braid.add(sp);
-      boltSprites.push(sp);
-    }
-    let spriteCursor = 0;
-    const takeSprites = (n) => {
-      const arr = [];
-      for (let k = 0; k < n; k++) { arr.push(boltSprites[spriteCursor % BOLT_POOL]); spriteCursor++; }
-      return arr;
-    };
+    /* ----- Настоящие молнии: фрактальные разряды с хаотичным ветвлением ----- */
+    const MAX_SEG = isMobile ? 520 : 760;
+    const CORE_W = [0.021, 0.0135, 0.0095, 0.0065];   // полуширина белой жилы по поколениям
+    const GLOW_K = [10, 8, 6.5, 5.5];                 // во сколько раз шире ореол
+    const CORE_A = [1, 0.85, 0.7, 0.55];
+    const GLOW_A = [0.34, 0.26, 0.2, 0.15];
+    const LEVELS = [5, 4, 3, 2];                      // глубина дробления пути
+    const BRANCH_P = [0.3, 0.2, 0.12, 0];             // шанс ветви в каждой вершине
+    const GLOW_COLORS = [[0.45, 0.62, 1], [0.62, 0.45, 1], [0.3, 0.78, 1]];
+    const GROW = 0.16;                                // время пробоя сверху вниз, с
+    const BOLT_Y0 = 6.6, BOLT_Y1 = -6.6;
 
-    const TRAIL = 8;         // спрайтов в канале одной «нити»
-    const bolts = [];
-    const spawnBolt = (o = {}) => {
-      if (bolts.length > 28) return;                 // защита от перенасыщения
-      const wIdx = o.wire !== undefined ? o.wire : Math.floor(Math.random() * WIRES.length);
-      const depth = o.depth || 0;
-      const birthU = o.u !== undefined ? o.u : 0.04 + Math.random() * 0.2;    // рождение внизу, внутри трубки
-      bolts.push({
-        wIdx,
-        w: WIRES[wIdx],
-        u: birthU,
-        birthU,
-        exitBase: o.exitBase !== undefined ? o.exitBase : -0.03,   // стартует внутри трубки
-        spread: o.spread !== undefined ? o.spread : 0.55 + depth * 0.32, // уходит от трубки всё дальше
-        speed: (o.speed || 0.24 + Math.random() * 0.17) * (1 + depth * 0.15),
-        bright: o.bright !== undefined ? o.bright : 1.15,          // очень яркая голова
-        depth,
-        gap: 0.004 + Math.random() * 0.006 + depth * 0.003,
-        size: (isMobile ? 0.34 : 0.44) * (1 - depth * 0.11),       // ветви — тоньше
-        spin: Math.random() * Math.PI * 2,
-        seed1: Math.random() * 100,
-        seed2: Math.random() * 100,
-        sps: takeSprites(TRAIL).map((sp, j) => {
-          /* голова — раскалённо-белая, хвост окрашен цветом трубки */
-          const wc = new THREE.Color().setHex(WIRES[wIdx].color, THREE.LinearSRGBColorSpace);
-          sp.material.color.setRGB(1, 1, 1).lerp(wc, 0.2 + 0.6 * (j / TRAIL));
-          return { sp, m: sp.material };
-        }),
-      });
-    };
+    const lightningVertex = `
+      attribute float aSide;
+      attribute vec4 aColor;
+      attribute float aT;
+      attribute float aDepth;
+      attribute float aShape;
+      varying float vSide;
+      varying vec4 vColor;
+      varying float vT;
+      varying float vDepth;
+      varying float vShape;
+      void main() {
+        vSide = aSide; vColor = aColor; vT = aT; vDepth = aDepth; vShape = aShape;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`;
+    const lightningFragment = `
+      uniform float uHead, uFlash, uTime;
+      varying float vSide;
+      varying vec4 vColor;
+      varying float vT;
+      varying float vDepth;
+      varying float vShape;
+      void main() {
+        float grown = 1.0 - smoothstep(uHead - 0.7, uHead, vT);
+        float tip = exp(-pow((uHead - vT) * 1.6, 2.0));
+        float s = abs(vSide);
+        float prof = vShape > 0.5 ? pow(1.0 - s, 1.5) : pow(1.0 - s, 2.4);
+        float fl = 1.0 - vDepth * 0.28 * step(0.55, fract(sin(vT * 37.0 + floor(uTime * 26.0) * 7.31) * 43758.5453));
+        float a = vColor.a * prof * grown * fl * uFlash;
+        vec3 col = vColor.rgb * (1.0 + tip * 1.6) * (1.0 + uFlash * 0.6);
+        gl_FragColor = vec4(col, clamp(a, 0.0, 1.0));
+      }`;
 
-    const tmpV = new THREE.Vector3();
-    /* точка пути: вдоль трубки + рваная извилистая спираль снаружи (e растёт по ходу) */
-    const exitPos = (b, uu, out) => {
-      const p = wireCurves[b.wIdx].getPoint(uu);
-      const jag = Math.sin(uu * 63.7 + b.seed1) * 0.3 + Math.sin(uu * 17.3 + b.seed2) * 0.45;
-      const spin = b.spin + (uu - b.birthU) * (14 + b.depth * 6) + jag * (0.3 + b.depth * 0.4);
-      const e = Math.min(0.9, Math.max(-0.03,
-        b.exitBase + (uu - b.birthU) * b.spread + Math.sin(uu * 47.9 + b.seed1 * 2) * 0.04 * (1 + b.depth)));
-      return out.set(p.x + Math.cos(spin) * e, p.y, p.z + Math.sin(spin) * e);
-    };
+    const lightning = [];
+    const rnd = Math.random;
 
-    let rootsAlive = 0;
-
-    const updateBolts = (dt, t) => {
-      /* молнии живут всегда: погасла — сразу рождается следующая */
-      rootsAlive = bolts.reduce((n, b) => n + (b.depth === 0 ? 1 : 0), 0);
-      if (rootsAlive < 3) { spawnBolt(); if (rootsAlive < 2) spawnBolt(); }
-      else if (Math.random() < 0.2 * dt) spawnBolt();
-
-      for (let i = bolts.length - 1; i >= 0; i--) {
-        const b = bolts[i];
-        b.u += b.speed * dt;                       // снизу вверх
-        /* основной канал горит дольше; ветви гаснут быстрее — «рассыпаются» */
-        if (b.u > 0.55) b.bright *= 1 - Math.min(1, (b.depth === 0 ? 1.5 : 2.4) * dt);
-        b.bright *= 1 - 0.08 * dt;
-        /* ветвление как у настоящей молнии: пучок делится на 2–3 дочерних */
-        if (b.depth < 4 && b.u > 0.08 && b.bright > 0.15 && Math.random() < 1.6 * dt) {
-          const kids = 2 + Math.floor(Math.random() * 2);
-          const curE = Math.min(0.9, Math.max(-0.03, b.exitBase + (b.u - b.birthU) * b.spread));
-          for (let k = 0; k < kids; k++) {
-            const spread = Math.random() < 0.5
-              ? b.wIdx
-              : (b.wIdx + (Math.random() < 0.5 ? 1 : WIRES.length - 1)) % WIRES.length;
-            spawnBolt({
-              wire: spread,
-              u: Math.max(0.02, b.u - 0.004 - Math.random() * 0.02),
-              exitBase: curE + 0.05 + Math.random() * 0.09,
-              spread: b.spread * (0.85 + Math.random() * 0.5),
-              speed: b.speed * (0.7 + Math.random() * 0.7),
-              bright: b.bright * (0.5 + Math.random() * 0.45),
-              depth: b.depth + 1,
-            });
-          }
-          b.bright *= 0.6;                          // энергия делится между пучками
-        }
-        /* смерть: рассыпался и погас — тут же родится новая (см. выше) */
-        if (b.u > 0.95 || b.bright < 0.03) {
-          b.sps.forEach(({ sp }) => { sp.visible = false; });
-          bolts.splice(i, 1);
-          continue;
-        }
-        /* канал: раскалённая белая голова + рваные мерцающие ветви */
-        const fadeIn = Math.min(1, (b.u - b.birthU) / 0.04);
-        const flicker = b.depth === 0 ? 1 : 0.55 + Math.random() * 0.45;
-        b.sps.forEach(({ sp, m }, j) => {
-          const uu = Math.max(b.birthU, b.u - j * b.gap);
-          exitPos(b, uu, tmpV);
-          sp.position.copy(tmpV);
-          const f = Math.min(1, (1 - j / TRAIL) * b.bright * fadeIn * flicker);
-          m.opacity = f;
-          sp.scale.setScalar(b.size * (1.15 - (j / TRAIL) * 0.85) * (0.7 + f * 0.6));
-          sp.visible = true;
-        });
+    const makeBoltSlot = (x, wait) => {
+      const quads = MAX_SEG * 2;                       // первая половина — ореол, вторая — жила
+      const geo = new THREE.BufferGeometry();
+      const pos = new Float32Array(quads * 12);
+      const col = new Float32Array(quads * 16);
+      const tt = new Float32Array(quads * 4);
+      const dep = new Float32Array(quads * 4);
+      const side = new Float32Array(quads * 4);
+      const shape = new Float32Array(quads * 4);
+      const idx = new Uint32Array(quads * 6);
+      for (let q = 0; q < quads; q++) {
+        const v = q * 4;
+        side.set([1, -1, 1, -1], v);
+        shape.fill(q < MAX_SEG ? 0 : 1, v, v + 4);
+        idx.set([v, v + 1, v + 2, v + 1, v + 3, v + 2], q * 6);
       }
+      const attrs = {
+        position: new THREE.BufferAttribute(pos, 3),
+        aColor: new THREE.BufferAttribute(col, 4),
+        aT: new THREE.BufferAttribute(tt, 1),
+        aDepth: new THREE.BufferAttribute(dep, 1),
+        aSide: new THREE.BufferAttribute(side, 1),
+        aShape: new THREE.BufferAttribute(shape, 1),
+      };
+      Object.entries(attrs).forEach(([k, a]) => geo.setAttribute(k, a));
+      geo.setIndex(new THREE.BufferAttribute(idx, 1));
+
+      const uniforms = { uHead: { value: 0 }, uFlash: { value: 0 }, uTime: { value: 0 } };
+      const mesh = new THREE.Mesh(geo, new THREE.ShaderMaterial({
+        uniforms, vertexShader: lightningVertex, fragmentShader: lightningFragment,
+        transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+      }));
+      mesh.frustumCulled = false;
+      mesh.visible = false;
+      mesh.position.z = -0.4;
+      root.add(mesh);
+
+      const makeHalo = () => {
+        const h = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: glowTex, color: 0x6a8cff, transparent: true, opacity: 0,
+          blending: THREE.AdditiveBlending, depthWrite: false,
+        }));
+        h.visible = false;
+        root.add(h);
+        return h;
+      };
+
+      const slot = {
+        x, wait, active: false, age: 0, maxT: 1, peaks: [], mesh, uniforms, attrs,
+        haloTop: makeHalo(), haloMid: makeHalo(),
+      };
+      lightning.push(slot);
+      return slot;
+    };
+
+    /* ломаный путь методом смещения середины: каждый раунд делит отрезки пополам и сдвигает середину вбок */
+    const jagged = (a, b, levels, disp) => {
+      let pts = [a.clone(), b.clone()];
+      for (let l = 0; l < levels; l++) {
+        const next = [];
+        for (let i = 0; i < pts.length - 1; i++) {
+          const p = pts[i], q = pts[i + 1];
+          const mid = p.clone().add(q).multiplyScalar(0.5);
+          const dir = q.clone().sub(p).normalize();
+          const r = new THREE.Vector3(rnd() - 0.5, rnd() - 0.5, (rnd() - 0.5) * 0.5);
+          r.addScaledVector(dir, -r.dot(dir));
+          mid.addScaledVector(r, disp * 2);
+          next.push(p, mid);
+        }
+        next.push(pts[pts.length - 1]);
+        pts = next;
+        disp *= 0.55;
+      }
+      return pts;
+    };
+
+    const writeQuad = (slot, quad, s, w, r, g, b, alpha) => {
+      const { position, aColor, aT, aDepth } = slot.attrs;
+      const dx = s.b.x - s.a.x, dy = s.b.y - s.a.y;
+      const len = Math.hypot(dx, dy, s.b.z - s.a.z) || 1;
+      let px = -dy, py = dx;
+      const pl = Math.hypot(px, py);
+      if (pl < 1e-5) { px = 1; py = 0; } else { px /= pl; py /= pl; }
+      const ex = ((s.b.x - s.a.x) / len) * w * 0.5;
+      const ey = ((s.b.y - s.a.y) / len) * w * 0.5;
+      const ez = ((s.b.z - s.a.z) / len) * w * 0.5;
+      const v = quad * 4;
+      const set = (k, X, Y, Z, T) => {
+        position.setXYZ(v + k, X, Y, Z);
+        aColor.setXYZW(v + k, r, g, b, alpha);
+        aT.setX(v + k, T);
+        aDepth.setX(v + k, s.d);
+      };
+      set(0, s.a.x - ex + px * w, s.a.y - ey + py * w, s.a.z - ez, s.ta);
+      set(1, s.a.x - ex - px * w, s.a.y - ey - py * w, s.a.z - ez, s.ta);
+      set(2, s.b.x + ex + px * w, s.b.y + ey + py * w, s.b.z + ez, s.tb);
+      set(3, s.b.x + ex - px * w, s.b.y + ey - py * w, s.b.z + ez, s.tb);
+    };
+
+    const strikeBolt = (slot) => {
+      const segs = [];
+      let maxT = 1;
+
+      const addPath = (a, b, depth, t0) => {
+        const len = a.distanceTo(b);
+        const pts = jagged(a, b, LEVELS[depth], len * (depth === 0 ? 0.11 : 0.15));
+        const ts = [t0];
+        for (let i = 1; i < pts.length; i++) ts.push(ts[i - 1] + pts[i].distanceTo(pts[i - 1]));
+        for (let i = 0; i < pts.length - 1; i++) {
+          if (segs.length >= MAX_SEG) return;
+          segs.push({ a: pts[i], b: pts[i + 1], d: depth, ta: ts[i], tb: ts[i + 1] });
+        }
+        maxT = Math.max(maxT, ts[ts.length - 1]);
+        if (BRANCH_P[depth] === 0) return;
+        for (let i = 1; i < pts.length - 1; i++) {
+          if (segs.length > MAX_SEG * (depth < 1 ? 0.92 : 0.8)) break;
+          if (rnd() >= BRANCH_P[depth]) continue;
+          const dirn = pts[i + 1].clone().sub(pts[i - 1]).normalize();
+          const sideV = new THREE.Vector3(rnd() - 0.5, (rnd() - 0.5) * (depth === 0 ? 0.4 : 1), (rnd() - 0.5) * 0.6).normalize();
+          const bd = dirn.multiplyScalar(0.55).addScaledVector(sideV, 0.95);
+          if (depth === 0) bd.y = -Math.abs(bd.y) - 0.15;
+          bd.normalize();
+          const blen = len * (0.14 + rnd() * 0.3) * (depth === 0 ? 1 : 0.8);
+          addPath(pts[i], pts[i].clone().addScaledVector(bd, blen), depth + 1, ts[i]);
+        }
+      };
+
+      const x = slot.x + (rnd() - 0.5) * 1.6;
+      const start = new THREE.Vector3(x, BOLT_Y0, (rnd() - 0.5) * 1.2);
+      const end = new THREE.Vector3(x + (rnd() - 0.5) * 3.2, BOLT_Y1, start.z + (rnd() - 0.5) * 1.4);
+      addPath(start, end, 0, 0);
+
+      const [gr, gg, gb] = GLOW_COLORS[Math.floor(rnd() * GLOW_COLORS.length)];
+      slot.attrs.position.array.fill(0);
+      segs.forEach((s, k) => {
+        writeQuad(slot, k, s, CORE_W[s.d] * GLOW_K[s.d], gr, gg, gb, GLOW_A[s.d]);
+        writeQuad(slot, MAX_SEG + k, s, CORE_W[s.d], 0.93, 0.96, 1, CORE_A[s.d]);
+      });
+      Object.values(slot.attrs).forEach((a) => { a.needsUpdate = true; });
+
+      slot.haloTop.material.color.setRGB(gr, gg, gb);
+      slot.haloMid.material.color.setRGB(gr, gg, gb);
+      slot.haloTop.position.set(start.x, BOLT_Y0 - 1.2, -1.5);
+      slot.haloTop.scale.setScalar(isMobile ? 7 : 10);
+      slot.haloMid.position.set((start.x + end.x) / 2, 0, -1.5);
+      slot.haloMid.scale.setScalar(isMobile ? 9 : 13);
+
+      slot.maxT = maxT;
+      slot.age = 0;
+      slot.active = true;
+      slot.peaks = [0.22 + rnd() * 0.1, 0.45 + rnd() * 0.15];
+      if (rnd() < 0.55) slot.peaks.push(0.7 + rnd() * 0.12);
+      slot.mesh.visible = true;
+      slot.haloTop.visible = true;
+      slot.haloMid.visible = true;
+    };
+
+    (isMobile ? [-1.2, 0, 1.2] : [-3.6, -0.3, 3.4]).forEach((x, i) => makeBoltSlot(x, 0.1 + i * 0.6));
+
+    const updateLightning = (dt, t) => {
+      lightning.forEach((s) => {
+        s.uniforms.uTime.value = t;
+        if (!s.active) {
+          s.wait -= dt;
+          if (s.wait <= 0) strikeBolt(s);
+          return;
+        }
+        s.age += dt;
+        const g = Math.min(1, s.age / GROW);
+        s.uniforms.uHead.value = g < 1 ? s.maxT * (1 - (1 - g) * (1 - g)) : s.maxT + 5;
+
+        let f;
+        if (g < 1) {
+          f = 1.15;
+        } else {
+          const a = s.age - GROW;
+          f = 0.85 * Math.exp(-a * 2.6);
+          s.peaks.forEach((p) => { if (a > p) f += 0.9 * Math.exp(-(a - p) * 13); });
+          f *= 0.88 + rnd() * 0.24;
+          f *= 1 - smoothstep(0.85, 1.15, a);
+        }
+        s.uniforms.uFlash.value = f;
+        s.haloTop.material.opacity = Math.min(1, f * 0.34);
+        s.haloMid.material.opacity = Math.min(1, f * 0.11);
+
+        if (s.age > GROW + 1.15) {
+          s.active = false;
+          s.mesh.visible = false;
+          s.haloTop.visible = false;
+          s.haloMid.visible = false;
+          s.wait = 0.4 + rnd() * 1.4;
+        }
+      });
     };
 
     /* ----- Спираль: рельса + карточки + спицы к хребту ----- */
@@ -597,10 +724,10 @@
       dust.rotation.y = t * 0.02 + progress * 0.8;
       dust.position.y = progress * 1.5;
 
-      // провода вращаются, прокрутка добавляет оборотов; молнии бегут снизу вверх
+      // провода вращаются, прокрутка добавляет оборотов; молнии бьют сверху вниз
       braid.rotation.y = t * 0.45 + progress * Math.PI * 8;
       wireUniforms.forEach((u) => { u.uTime.value = t; });
-      updateBolts(dt, t);
+      updateLightning(dt, t);
 
       // яркость и прозрачность каждой карточки по положению
       const activeFloat = f;
