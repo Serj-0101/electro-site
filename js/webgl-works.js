@@ -53,11 +53,11 @@
 
   /* ---------- Параметры спирали ---------- */
   const CARDS = works.length;
-  /* dy — вертикальный шаг. Подобран по проекции (fov 45°): компактнее шаг —
-     больше плашек в кадре, но зазор между краями должен оставаться читаемым */
+  /* dy — вертикальный шаг: подобран по проекции так, чтобы нижний правый угол
+     плашки касался верхнего левого угла следующей (dy ≈ высота плашки) */
   const CFG = isMobile
-    ? { radius: 2.8, width: 2.0, stepDeg: 38, dy: 1.9, camZ: 9.5 }
-    : { radius: 4.5, width: 2.6, stepDeg: 30, dy: 2.3, camZ: 11 };
+    ? { radius: 2.8, width: 2.0, stepDeg: 38, dy: 1.3, camZ: 9.5 }
+    : { radius: 4.5, width: 2.6, stepDeg: 30, dy: 1.8, camZ: 11 };
   const STEP = (CFG.stepDeg * Math.PI) / 180;
   const CARD_ASPECT = 1.6;
   const CARD_H = CFG.width / CARD_ASPECT;
@@ -346,7 +346,7 @@
       pivot.add(node);
 
       helix.add(pivot);
-      cards.push({ pivot, mesh, mat, node, angle: i * STEP, y: -i * CFG.dy, scale: 1 });
+      cards.push({ pivot, mesh, mat, node, angle: i * STEP, y: -i * CFG.dy, scale: 1, pop: 0 });
     }
 
     /* ----- Космическая пыль вокруг ----- */
@@ -465,12 +465,11 @@
       const t = clock.getElapsedTime();
       const target = getTarget();
       const velocity = target - progress;
-      progress += velocity * 0.05;                     // мягкое сглаживание прокрутки
+      progress += velocity * 0.045;                     // очень мягкое сглаживание
 
       const f = progress * (CARDS - 1);                 // «номер» карточки в центре
       helix.rotation.y = -f * STEP;
       helix.position.y = f * CFG.dy;
-      helix.rotation.z = THREE.MathUtils.clamp(velocity * 2.2, -0.07, 0.07);
 
       mx += (tmx - mx) * 0.05;
       my += (tmy - my) * 0.05;
@@ -494,6 +493,7 @@
 
       // яркость и прозрачность каждой карточки по положению
       const activeFloat = f;
+      const activeIdx = Math.max(0, Math.min(CARDS - 1, Math.round(activeFloat)));
       cards.forEach((c, i) => {
         const worldAngle = c.angle + helix.rotation.y;
         const facing = Math.cos(worldAngle);                      // 1 — лицом к камере
@@ -503,9 +503,14 @@
         c.mat.opacity = 1 - smoothstep(2.8, 5.6, Math.abs(worldY));
         c.mesh.visible = c.mat.opacity > 0.01;
         c.node.material.opacity = 0.35 + 0.65 * Math.max(0, 1 - Math.abs(activeFloat - i) * 0.6);
-        const goal = hovered === i ? 1.07 : 1;
-        c.scale += (goal - c.scale) * 0.12;
+
+        /* «всплытие»: центральная (+ под курсором) плашка +20% и выдвигается к зрителю */
+        const wantPop = (i === activeIdx || hovered === i) ? 1 : 0;
+        c.pop += (wantPop - c.pop) * 0.08;
+        const goal = 1 + 0.2 * c.pop;
+        c.scale += (goal - c.scale) * 0.08;
         c.mesh.scale.set(c.scale, c.scale, c.scale);
+        c.mesh.position.z = 0.32 * c.pop;
       });
 
       // наведение: берём только карточки, повёрнутые к камере
