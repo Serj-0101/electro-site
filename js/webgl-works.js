@@ -14,7 +14,7 @@
 
   const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
-  /* ---------- Данные берём из статической сетки (фолбэк) ---------- */
+  /* ---------- Данные берём из статических сеток (фолбэк) ---------- */
   const PALETTES = {
     'w-1': ['#10303f', '#0a0a0b', '#0d1b26'],
     'w-2': ['#1d3445', '#0a0a0b', '#2a2108'],
@@ -23,19 +23,39 @@
     'w-5': ['#0f3a4d', '#0a0a0b', '#161624'],
     'w-6': ['#161624', '#1a3444', '#0a0a0b'],
   };
-  const works = [...document.querySelectorAll('.works__grid .work')].map((el, i) => {
+  const paletteFor = (i) => PALETTES['w-' + ((i % 6) + 1)];
+  const cut = (s, n) => { s = s.trim(); return s.length > n ? s.slice(0, n).trimEnd() + '…' : s; };
+
+  /* Услуги */
+  const fromServices = [...document.querySelectorAll('.services__grid .card')].map((el, i) => ({
+    title: (el.querySelector('.card__title') || el).textContent.trim(),
+    sub: cut((el.querySelector('.card__text') || el).textContent, 54) + '…',
+    href: el.getAttribute('href') || 'pages/services.html',
+    palette: paletteFor(i),
+  }));
+  /* Преимущества */
+  const fromAdv = [...document.querySelectorAll('.advantages__grid .adv')].map((el, i) => ({
+    title: (el.querySelector('h3') || el).textContent.trim(),
+    sub: cut((el.querySelector('p') || el).textContent, 54) + '…',
+    href: '#contacts',
+    palette: paletteFor(i + 4),
+  }));
+  /* Работы */
+  const fromWorks = [...document.querySelectorAll('.works__grid .work')].map((el) => {
     const key = [...el.classList].find((c) => /^w-\d$/.test(c)) || 'w-1';
     const label = (el.querySelector('.work__label') || el).textContent.trim();
     const [title, ...rest] = label.split(' · ');
-    return { title, sub: rest.join(' · '), href: el.getAttribute('href'), palette: PALETTES[key], seed: i + 1 };
+    return { title, sub: rest.join(' · '), href: el.getAttribute('href'), palette: PALETTES[key] };
   });
+  const works = [...fromServices, ...fromAdv, ...fromWorks];
+  works.forEach((w, i) => { w.seed = i + 1; });
   if (!works.length) return;
 
   /* ---------- Параметры спирали ---------- */
-  const CARDS = 12;
+  const CARDS = works.length;
   const CFG = isMobile
-    ? { radius: 2.8, width: 2.0, stepDeg: 46, dy: 0.5, camZ: 9.5 }
-    : { radius: 4.5, width: 2.6, stepDeg: 38, dy: 0.5, camZ: 11 };
+    ? { radius: 2.8, width: 2.0, stepDeg: 38, dy: 0.5, camZ: 9.5 }
+    : { radius: 4.5, width: 2.6, stepDeg: 30, dy: 0.5, camZ: 11 };
   const STEP = (CFG.stepDeg * Math.PI) / 180;
   const CARD_ASPECT = 1.6;
   const CARD_H = CFG.width / CARD_ASPECT;

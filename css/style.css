@@ -505,7 +505,7 @@ body.is-booting .hero__content > * {
 .works-stage { display: none; }
 .works--3d { padding: 0; }
 .works--3d .works__static { display: none; }
-.works--3d .works-stage { display: block; position: relative; height: 560vh; }
+.works--3d .works-stage { display: block; position: relative; height: 1100vh; }
 .works-stage__sticky {
   position: sticky;
   top: 0;
@@ -784,5 +784,40 @@ body.is-booting .hero__content > * {
   }
   html { scroll-behavior: auto; }
   .reveal { opacity: 1; transform: none; }
+}
+
+/* ---------- Фиксированная CTA-кнопка (почти прозрачная) ---------- */
+.cta-fixed {
+  position: fixed;
+  top: 20px;
+  right: 96px;
+  z-index: 60; /* ниже полноэкранного меню (90) — прячется под ним */
+  padding: 12px 26px;
+  font-family: var(--font-head);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: rgba(0, 212, 255, 0.06);
+  border: 1px solid rgba(0, 212, 255, 0.28);
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+  will-change: transform;
+}
+.cta-fixed:hover {
+  background: rgba(0, 212, 255, 0.14);
+  border-color: var(--accent);
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.22);
+}
+
+@media (max-width: 900px) {
+  .cta-fixed { right: 80px; }
+}
+@media (max-width: 520px) {
+  .cta-fixed { right: 72px; top: 16px; padding: 10px 16px; font-size: 10px; }
+  .works--3d .works-stage { height: 900vh; }
 }
 
