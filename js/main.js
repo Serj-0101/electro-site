@@ -6,7 +6,6 @@
   'use strict';
 
   const isTouch = !window.matchMedia('(pointer: fine)').matches;
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const hasGsap = typeof gsap !== 'undefined';
 
   /* ---------- Прелоадер ---------- */
@@ -15,7 +14,7 @@
 
   if (preloader && counter) {
     let progress = 0;
-    const step = reduceMotion ? 34 : 9 + Math.random() * 8;
+    const step = 9 + Math.random() * 8;
     const tick = setInterval(() => {
       progress = Math.min(100, progress + step);
       counter.textContent = Math.floor(progress);
@@ -25,15 +24,15 @@
           preloader.classList.add('preloader--done');
           document.body.classList.remove('is-booting');
           document.body.classList.add('is-loaded');
-        }, reduceMotion ? 0 : 350);
+        }, 350);
       }
-    }, reduceMotion ? 20 : 95);
+    }, 95);
   } else {
     document.body.classList.remove('is-booting');
   }
 
   /* ---------- Кастомный курсор ---------- */
-  if (!isTouch && !reduceMotion) {
+  if (!isTouch) {
     document.body.classList.add('has-cursor');
     const dot = document.getElementById('cursorDot');
     const ring = document.getElementById('cursorRing');
@@ -60,7 +59,7 @@
   }
 
   /* ---------- Магнитные кнопки ---------- */
-  if (!isTouch && !reduceMotion) {
+  if (!isTouch) {
     document.querySelectorAll('.magnetic').forEach((el) => {
       el.addEventListener('mousemove', (e) => {
         const r = el.getBoundingClientRect();

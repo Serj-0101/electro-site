@@ -828,16 +828,6 @@ body.is-booting .hero__content > * {
 /* короткая подпись CTA на узких экранах */
 .cta-short { display: none; }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-  html { scroll-behavior: auto; }
-  .reveal { opacity: 1; transform: none; }
-}
-
 /* ---------- CTA-кнопка «Вызвать электрика» (почти прозрачная, в шапке) ---------- */
 .cta-fixed {
   display: inline-block;

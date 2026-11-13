@@ -9,8 +9,8 @@
   const section = document.getElementById('works');
   const stage = document.getElementById('worksStage');
   const canvas = document.getElementById('works-canvas');
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!section || !stage || !canvas || !window.THREE || reduceMotion || window.HERMAN_LIGHT) return;
+  /* WebGL-сцена включается на любых устройствах; лёгкая версия — только по выбору пользователя */
+  if (!section || !stage || !canvas || !window.THREE || window.HERMAN_LIGHT) return;
 
   const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
