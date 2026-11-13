@@ -290,13 +290,18 @@
 
     /* ----- Молнии: случайные ветвящиеся разряды, бегут снизу вверх ----- */
     const wireCurves = [];
+    /* ----- Изгибающаяся ось жгута: случайные изгибы вместо прямой линии ----- */
+    const axisX = (y) => Math.sin(y * 0.32 + 0.8) * 1.05 + Math.sin(y * 0.13 + 2.1) * 0.7;
+    const axisZ = (y) => Math.cos(y * 0.27 + 1.4) * 0.85 + Math.sin(y * 0.11 + 4.2) * 0.55;
+
     WIRES.forEach((w) => {
       const curve = new THREE.Curve();
       curve.getPoint = (t, target = new THREE.Vector3()) => {
         const y = (t - 0.5) * BRAID_H;
         const a = wireAngle(y, w);
         const r = wireRadius(y, w);
-        return target.set(Math.cos(a) * r, y, Math.sin(a) * r);
+        /* обмотка вокруг изогнутой оси: точка намотки + смещение оси в этой высоте */
+        return target.set(Math.cos(a) * r + axisX(y), y, Math.sin(a) * r + axisZ(y));
       };
       wireCurves.push(curve);
       /* сама трубка мягко светится; весь свет несут случайные молнии.
