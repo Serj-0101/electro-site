@@ -173,18 +173,26 @@
       try { localStorage.setItem('herman-sound', savedOn ? 'on' : 'off'); } catch (e) {}
     });
 
-    /* если браузер блокирует автозапуск — включаем после первого касания/клика */
+    /* если браузер блокирует автозапуск — включаем после первого касания,
+       клика, нажатия клавиши или прокрутки сайта */
     if (savedOn) {
       start();
-      const unlock = () => {
+      let lastTry = 0;
+      const events = ['pointerdown', 'touchstart', 'touchmove', 'keydown', 'wheel', 'scroll'];
+      const removeTriggers = () => {
+        events.forEach((ev) => window.removeEventListener(ev, tryStart));
+      };
+      const tryStart = () => {
         if (unlocked || !savedOn) return;
-        if (playing) { unlocked = true; return; }
+        const now = Date.now();
+        if (now - lastTry < 500) return;          // не чаще 2 раз в секунду
+        lastTry = now;
+        if (playing) { unlocked = true; removeTriggers(); return; }
         start();
         unlocked = playing;
+        if (unlocked) removeTriggers();
       };
-      window.addEventListener('pointerdown', unlock);
-      window.addEventListener('touchstart', unlock, { passive: true });
-      window.addEventListener('keydown', unlock);
+      events.forEach((ev) => window.addEventListener(ev, tryStart, { passive: true }));
     }
   }
 
