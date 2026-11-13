@@ -299,9 +299,10 @@
         return target.set(Math.cos(a) * r, y, Math.sin(a) * r);
       };
       wireCurves.push(curve);
-      /* сама трубка мягко светится; весь свет несут случайные молнии */
-      braid.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 380, 0.05, 8, false), makeWireMaterial(w, 0.34, 0.1, 0.45)));
-      braid.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 380, 0.15, 8, false), makeWireMaterial(w, 0.07, 0.04, 0.7)));
+      /* сама трубка мягко светится; весь свет несут случайные молнии.
+         Диаметр ×4 (радиус 0.05→0.2), ореол также ×4 (0.15→0.6); оси плетения не менялись */
+      braid.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 380, 0.2, 8, false), makeWireMaterial(w, 0.34, 0.1, 0.45)));
+      braid.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 380, 0.6, 8, false), makeWireMaterial(w, 0.07, 0.04, 0.7)));
     });
 
     /* ----- Настоящие молнии: фрактальные разряды с хаотичным ветвлением ----- */
