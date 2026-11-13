@@ -232,7 +232,7 @@
     const PERIOD = 4;           // расстояние между импульсами
     const WRAP = 16;            // кратно PERIOD
     const WIRES = [
-      { phase: 0,     color: 0xdd4a4a, speed: 2.4 },              // слегка красная
+      { phase: 0,     color: 0xf2f2f2, speed: 2.4 },              // почти прозрачная белая
       { phase: 1 / 3, color: 0x4a7bdd, speed: -1.9 },             // слегка синяя
       { phase: 2 / 3, color: 0xd9b93a, speed: 2.9, stripe: 1 },   // слегка жёлтая + тонкая зелёная полоса
     ];
