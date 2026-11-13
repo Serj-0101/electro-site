@@ -12,7 +12,7 @@
 
   // Fallback: нет WebGL, нет Three.js или пользователь просил меньше движения
   const fallback = () => { if (hero) hero.classList.add('no-webgl'); };
-  if (!canvas || !window.THREE || reduceMotion) { fallback(); return; }
+  if (!canvas || !window.THREE || reduceMotion || window.HERMAN_LIGHT) { fallback(); return; }
 
   try {
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });

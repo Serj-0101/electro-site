@@ -189,6 +189,22 @@
     }
   }
 
+  /* ---------- Переключатель «Лёгкая версия» ---------- */
+  const modeBtn = document.getElementById('modeToggle');
+  if (modeBtn) {
+    const narrow = window.matchMedia('(max-width: 520px)').matches;
+    const label = (light) => light
+      ? (narrow ? 'Полная' : 'Полная версия')
+      : (narrow ? 'Лёгкая' : 'Лёгкая версия');
+    modeBtn.textContent = label(window.HERMAN_LIGHT === 1);
+    modeBtn.setAttribute('aria-pressed', String(window.HERMAN_LIGHT === 1));
+    modeBtn.addEventListener('click', () => {
+      const toLight = window.HERMAN_LIGHT !== 1;
+      try { localStorage.setItem('herman-mode', toLight ? 'light' : 'full'); } catch (e) {}
+      location.reload();   // перезагрузка применяет выбранный режим
+    });
+  }
+
   /* ---------- Год в подвале ---------- */
   const year = document.getElementById('year');
   if (year) year.textContent = new Date().getFullYear();

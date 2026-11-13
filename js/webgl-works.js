@@ -10,7 +10,7 @@
   const stage = document.getElementById('worksStage');
   const canvas = document.getElementById('works-canvas');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!section || !stage || !canvas || !window.THREE || reduceMotion) return;
+  if (!section || !stage || !canvas || !window.THREE || reduceMotion || window.HERMAN_LIGHT) return;
 
   const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
