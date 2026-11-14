@@ -867,3 +867,91 @@ body.is-booting .hero__content > * {
   .works--3d .works-stage { height: 900vh; }
 }
 
+/* ---------- Калькулятор ---------- */
+.calc-intro { color: var(--text-dim); max-width: 560px; margin-top: 16px; }
+.calc-grid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 48px;
+  align-items: start;
+  margin-top: 48px;
+}
+.calc-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+}
+.calc-row__name { flex: 1; min-width: 0; }
+.calc-row__name h3 {
+  font-family: var(--font-head);
+  font-size: 16px;
+  font-weight: 600;
+}
+.calc-row__name p { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+.calc-row__price { font-size: 14px; color: var(--text-dim); white-space: nowrap; }
+.calc-stepper { display: flex; align-items: center; gap: 10px; }
+.calc-stepper button {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.3s, color 0.3s;
+}
+.calc-stepper button:hover { border-color: var(--accent); color: var(--accent); }
+.calc-stepper output {
+  min-width: 40px;
+  text-align: center;
+  font-family: var(--font-head);
+  font-size: 17px;
+}
+.calc-total {
+  position: sticky;
+  top: 96px;
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.calc-total h3 {
+  font-family: var(--font-head);
+  font-size: 18px;
+  font-weight: 600;
+}
+.calc-total__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13.5px;
+  color: var(--text-dim);
+}
+.calc-total__empty { font-size: 13.5px; color: var(--text-dim); }
+.calc-total__sum-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.calc-total__sum {
+  font-family: var(--font-head);
+  font-size: 32px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+@media (max-width: 900px) {
+  .calc-grid { grid-template-columns: 1fr; gap: 36px; }
+  .calc-total { position: static; }
+}
+
+

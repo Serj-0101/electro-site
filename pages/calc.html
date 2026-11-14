@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Калькулятор стоимости электромонтажных работ — ГЕРМАН</title>
+  <meta name="description" content="Предварительный расчёт стоимости электромонтажных работ в Майкопе и Адыгее: проводка, щиты, освещение. Выезд бесплатно.">
+  <meta name="theme-color" content="#0A0A0B">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%2300D4FF' d='M13 2L4 14h6l-1 8 9-12h-6l1-8z'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Manrope:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css?v=27">
+</head>
+<body>
+
+  <!-- ===== Шапка ===== -->
+  <header class="header">
+    <a href="../index.html" class="header__logo">ГЕРМАН<span class="accent">.</span></a>
+    <div class="header__controls">
+      <a href="../index.html#contacts" class="cta-fixed"><span class="cta-long">Вызвать электрика</span><span class="cta-short">Электрик</span></a>
+      <button class="burger" id="burger" aria-label="Открыть меню" aria-expanded="false">
+        <span class="burger__line"></span>
+        <span class="burger__line"></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===== Полноэкранное меню ===== -->
+  <nav class="menu" id="menu" aria-hidden="true">
+    <ul class="menu__list">
+      <li class="menu__item"><a href="../index.html" class="menu__link">Главная</a></li>
+      <li class="menu__item"><a href="services.html" class="menu__link">Услуги</a></li>
+      <li class="menu__item"><a href="portfolio.html" class="menu__link">Работы</a></li>
+      <li class="menu__item"><a href="calc.html" class="menu__link">Калькулятор</a></li>
+      <li class="menu__item"><a href="about.html" class="menu__link">О компании</a></li>
+      <li class="menu__item"><a href="contacts.html" class="menu__link">Контакты</a></li>
+    </ul>
+    <div class="menu__contacts">
+      <a href="tel:+79604362164" class="menu__phone">+7 960 436-21-64</a>
+      <a href="tel:88772568595" class="menu__phone menu__phone--dim">8 (8772) 56-85-95</a>
+      <span class="menu__note">Майкоп · Республика Адыгея</span>
+    </div>
+  </nav>
+
+  <main>
+    <!-- ===== Калькулятор ===== -->
+    <section class="section">
+      <div class="container">
+        <p class="kicker">ГЕРМАН · расчёт стоимости</p>
+        <h1 class="section__title">Калькулятор <span class="accent">·</span> считайте сами</h1>
+        <p class="calc-intro">Выберите работы и количество — сумма посчитается сразу.
+        Выезд электрика на объект и предварительная оценка — <b>бесплатно</b>.</p>
+
+        <div class="calc-grid">
+          <div class="calc-list" id="calcList"></div>
+
+          <aside class="calc-total" aria-label="Итог расчёта">
+            <h3>Ваш расчёт</h3>
+            <div id="calcDetails"></div>
+            <div class="calc-total__sum-row">
+              <span>Итого</span>
+              <span class="calc-total__sum" id="calcSum">0 ₽</span>
+            </div>
+            <a href="../index.html#contacts" class="btn btn--primary btn--wide">Вызвать электрика</a>
+            <p class="form__note">Цены предварительные — точную смету составим после бесплатного выезда на объект</p>
+          </aside>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== Подвал ===== -->
+  <footer class="footer">
+    <div class="container footer__inner">
+      <a href="../index.html" class="footer__logo">ГЕРМАН<span class="accent">.</span></a>
+      <nav class="footer__nav">
+        <a href="services.html">Услуги</a>
+        <a href="portfolio.html">Работы</a>
+        <a href="calc.html">Калькулятор</a>
+        <a href="contacts.html">Контакты</a>
+      </nav>
+      <div class="footer__contacts">
+        <a href="tel:+79604362164">+7 960 436-21-64 (МАХ)</a>
+        <a href="tel:88772568595">8 (8772) 56-85-95</a>
+      </div>
+      <p class="footer__copy">© <span id="year">2026</span> ГЕРМАН · Электромонтажные работы · сборка 2026-11-14/v1.12</p>
+    </div>
+  </footer>
+
+  <script src="../js/prices.js?v=27"></script>
+  <script src="../js/calc.js?v=27"></script>
+  <script>
+    /* Бургер-меню + год (лёгкая страница — без main.js и WebGL) */
+    (function () {
+      'use strict';
+      var burger = document.getElementById('burger');
+      var menu = document.getElementById('menu');
+      var setOpen = function (open) {
+        document.body.classList.toggle('menu-open', open);
+        burger.setAttribute('aria-expanded', String(open));
+        menu.setAttribute('aria-hidden', String(!open));
+      };
+      burger.addEventListener('click', function () {
+        setOpen(!document.body.classList.contains('menu-open'));
+      });
+      menu.addEventListener('click', function (e) {
+        if (e.target.closest('a')) setOpen(false);
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') setOpen(false);
+      });
+      document.getElementById('year').textContent = new Date().getFullYear();
+    })();
+  </script>
+</body>
+</html>
