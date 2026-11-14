@@ -47,7 +47,14 @@
     const [title, ...rest] = label.split(' · ');
     return { title, sub: rest.join(' · '), href: el.getAttribute('href'), palette: PALETTES[key] };
   });
-  const works = [...fromServices, ...fromWorks, ...fromAdv];
+  /* Калькулятор — дополнительная вкладка в конце лестницы */
+  const fromExtra = [{
+    title: 'Калькулятор',
+    sub: 'Предварительный расчёт стоимости работ',
+    href: 'pages/calc.html',
+    palette: PALETTES['w-4'],
+  }];
+  const works = [...fromServices, ...fromWorks, ...fromAdv, ...fromExtra];
   works.forEach((w, i) => { w.seed = i + 1; });
   if (!works.length) return;
 
