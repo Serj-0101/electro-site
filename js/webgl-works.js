@@ -47,7 +47,7 @@
     const [title, ...rest] = label.split(' · ');
     return { title, sub: rest.join(' · '), href: el.getAttribute('href'), palette: PALETTES[key] };
   });
-  const works = [...fromServices, ...fromAdv, ...fromWorks];
+  const works = [...fromServices, ...fromWorks, ...fromAdv];
   works.forEach((w, i) => { w.seed = i + 1; });
   if (!works.length) return;
 
