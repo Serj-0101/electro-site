@@ -128,20 +128,6 @@
     revealEls.forEach((el) => el.classList.add('is-visible'));
   }
 
-  /* ---------- Форма заявки ---------- */
-  const form = document.getElementById('contactForm');
-  if (form) {
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      // TODO (Этап 6): подключить реальную отправку (Formspree / Telegram-бот)
-      const note = form.querySelector('.form__note');
-      const success = form.querySelector('.form__success');
-      if (note) note.hidden = true;
-      if (success) success.hidden = false;
-      form.querySelectorAll('input, textarea, button').forEach((el) => { el.disabled = true; });
-    });
-  }
-
   /* ---------- Фоновая музыка ---------- */
   const soundBtn = document.getElementById('soundToggle');
   if (soundBtn) {
