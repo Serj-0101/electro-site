@@ -32,6 +32,7 @@
     sub: cut((el.querySelector('.card__text') || el).textContent, 54) + '…',
     href: el.getAttribute('href') || 'pages/services.html',
     palette: paletteFor(i),
+    icon: el.dataset.icon || null,
   }));
   /* Преимущества */
   const fromAdv = [...document.querySelectorAll('.advantages__grid .adv')].map((el, i) => ({
@@ -39,13 +40,14 @@
     sub: cut((el.querySelector('p') || el).textContent, 54) + '…',
     href: '#contacts',
     palette: paletteFor(i + 4),
+    icon: el.dataset.icon || null,
   }));
   /* Работы */
   const fromWorks = [...document.querySelectorAll('.works__grid .work')].map((el) => {
     const key = [...el.classList].find((c) => /^w-\d$/.test(c)) || 'w-1';
     const label = (el.querySelector('.work__label') || el).textContent.trim();
     const [title, ...rest] = label.split(' · ');
-    return { title, sub: rest.join(' · '), href: el.getAttribute('href'), palette: PALETTES[key] };
+    return { title, sub: rest.join(' · '), href: el.getAttribute('href'), palette: PALETTES[key], icon: el.dataset.icon || null };
   });
   /* Калькулятор — дополнительная вкладка в конце лестницы */
   const fromExtra = [{
@@ -53,10 +55,59 @@
     sub: 'Предварительный расчёт стоимости работ',
     href: 'pages/calc.html',
     palette: PALETTES['w-4'],
+    icon: 'img/icons/calculator.webp',
   }];
   const works = [...fromServices, ...fromWorks, ...fromAdv, ...fromExtra];
   works.forEach((w, i) => { w.seed = i + 1; });
   if (!works.length) return;
+
+  /* ---------- Неон-вывески: загрузка иконок и разбивка на «трубки» ---------- */
+  const iconCache = {};
+  const loadIcon = (url) => new Promise((resolve) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => resolve(null);
+    im.src = url;
+  });
+  /* случайные области-«жилы сбоя»: куски вывески, которые гаснут отдельно */
+  const blobsFor = (rnd, S) => {
+    const blobs = [];
+    const n = 2 + Math.floor(rnd() * 2);
+    for (let b = 0; b < n; b++) {
+      blobs.push({
+        x: rnd() * (S * 0.68), y: rnd() * (S * 0.68),
+        w: S * (0.2 + rnd() * 0.28), h: S * (0.2 + rnd() * 0.28),
+      });
+    }
+    return blobs;
+  };
+  const fillBlobs = (ctx, blobs) => {
+    ctx.fillStyle = '#fff';
+    blobs.forEach((b) => {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(b.x, b.y, b.w, b.h, b.w * 0.3);
+      else ctx.rect(b.x, b.y, b.w, b.h);
+      ctx.fill();
+    });
+  };
+  /* два слоя: base — стабильные трубки (области вырезаны), fault — только области сбоя */
+  function makeNeonTextures(img, seed, maxAniso) {
+    const S = img.width;
+    const blobs = blobsFor(mulberry32(seed * 131 + 7), S);
+    const mk = (mode) => {
+      const c = document.createElement('canvas');
+      c.width = c.height = S;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, S, S);
+      ctx.globalCompositeOperation = mode;
+      fillBlobs(ctx, blobs);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = maxAniso;
+      return tex;
+    };
+    return { base: mk('destination-out'), fault: mk('destination-in') };
+  }
 
   /* ---------- Параметры спирали ---------- */
   const CARDS = works.length;
@@ -68,6 +119,9 @@
   const STEP = (CFG.stepDeg * Math.PI) / 180;
   const CARD_ASPECT = 1.6;
   const CARD_H = CFG.width / CARD_ASPECT;
+  /* Неон-вывеска: единый размер для всех плашек, почти на всю высоту */
+  const NEON_S = CARD_H * 0.74;
+  const NEON_Y = CARD_H * 0.10;
   const CYAN = 0x00d4ff;
 
   const smoothstep = (a, b, x) => {
@@ -82,7 +136,6 @@
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
-  const BOLT = new Path2D('M13 2L4 14h6l-1 8 9-12h-6l1-8z');
 
   function wrapText(ctx, text, maxWidth) {
     const words = text.split(' ');
@@ -140,20 +193,6 @@
       ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill();
     }
 
-    // молния с мягким свечением
-    ctx.save();
-    ctx.translate(W * 0.62, H * 0.12);
-    ctx.scale(17, 17);
-    ctx.shadowColor = 'rgba(0,212,255,0.9)';
-    ctx.shadowBlur = 40;
-    ctx.fillStyle = 'rgba(0,212,255,0.16)';
-    ctx.fill(BOLT);
-    ctx.shadowBlur = 0;
-    ctx.lineWidth = 0.12;
-    ctx.strokeStyle = 'rgba(0,212,255,0.7)';
-    ctx.stroke(BOLT);
-    ctx.restore();
-
     // нижняя подложка под текст
     const shade = ctx.createLinearGradient(0, H * 0.4, 0, H);
     shade.addColorStop(0, 'rgba(10,10,11,0)');
@@ -209,7 +248,10 @@
       ]).catch(() => {})
     : Promise.resolve();
 
-  fontsReady.then(init);
+  const iconUrls = [...new Set(works.map((w) => w.icon).filter(Boolean))];
+  const iconsReady = Promise.all(iconUrls.map((u) => loadIcon(u).then((im) => { iconCache[u] = im; })));
+
+  Promise.all([fontsReady, iconsReady]).then(init);
 
   function init() {
     let renderer;
@@ -641,6 +683,33 @@
       mesh.userData.index = i;
       pivot.add(mesh);
 
+      /* Неон-вывеска: два изогнутых слоя чуть поверх плашки (наследуют pop/hover плашки) */
+      let neon = null;
+      const iconUrl = works[i % works.length].icon;
+      const iconImg = iconUrl && iconCache[iconUrl];
+      if (iconImg) {
+        const mkLayer = (tex, r, order) => {
+          const arcN = NEON_S / r;
+          const m = new THREE.Mesh(
+            new THREE.CylinderGeometry(r, r, NEON_S, 24, 1, true, -arcN / 2, arcN),
+            new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide }),
+          );
+          m.position.y = NEON_Y;
+          m.renderOrder = order;
+          mesh.add(m);
+          return m;
+        };
+        const texs = makeNeonTextures(iconImg, works[i % works.length].seed, maxAniso);
+        neon = {
+          base: mkLayer(texs.base, CFG.radius + 0.02, 1),
+          fault: mkLayer(texs.fault, CFG.radius + 0.024, 2),
+          t: Math.random() * 10,
+          state: 'on',
+          until: 1.5 + Math.random() * 5,
+          k: 1,
+        };
+      }
+
       pivot.add(new THREE.Line(spokeGeo, new THREE.LineBasicMaterial({
         color: CYAN, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false,
       })));
@@ -652,7 +721,7 @@
       pivot.add(node);
 
       helix.add(pivot);
-      cards.push({ pivot, mesh, mat, node, angle: i * STEP, y: -i * CFG.dy, scale: 1, pop: 0 });
+      cards.push({ pivot, mesh, mat, node, angle: i * STEP, y: -i * CFG.dy, scale: 1, pop: 0, neon });
     }
 
     /* ----- Космическая пыль вокруг ----- */
@@ -810,6 +879,34 @@
         c.scale += (goal - c.scale) * 0.08;
         c.mesh.scale.set(c.scale, c.scale, c.scale);
         c.mesh.position.z = 0.32 * c.pop;
+
+        /* Неон-вывеска: «дыхание» основы + сбои отдельных «трубок» */
+        if (c.neon) {
+          const n = c.neon;
+          n.t += dt;
+          const fade = Math.min(1, c.mat.opacity);
+          const breathe = 0.86 + 0.14 * Math.sin(n.t * 1.7 + c.angle * 3.1);
+          n.base.material.opacity = fade * breathe;
+          n.base.material.color.setScalar(0.78 + 0.22 * breathe * c.mat.color.r);
+
+          let f = 0.9 + 0.1 * Math.sin(n.t * 2.3 + c.angle);
+          n.until -= dt;
+          if (n.state === 'on') {
+            if (n.until <= 0) { n.state = 'stutter'; n.until = 0.12 + Math.random() * 0.25; }
+          } else if (n.state === 'stutter') {
+            f = (Math.floor(n.t * 22) % 2) ? 0.15 : 1;            // строб-мигание
+            if (n.until <= 0) { n.state = 'off'; n.until = 0.2 + Math.random() * 1.3; }
+          } else if (n.state === 'off') {
+            f = 0.05;                                            // «трубки» погасли
+            if (n.until <= 0) { n.state = 'warmup'; n.until = 0.3 + Math.random() * 0.5; }
+          } else {
+            f = (Math.floor(n.t * 14) % 3) ? 0.3 : 0.95;          // гудит и пробует зажечься
+            if (n.until <= 0) { n.state = 'on'; n.until = 3 + Math.random() * 7; }
+          }
+          n.k += (f - n.k) * Math.min(1, dt * 30);
+          n.fault.material.opacity = fade * n.k;
+          n.fault.material.color.setScalar(0.78 + 0.22 * n.k * c.mat.color.r);
+        }
       });
 
       // наведение: берём только карточки, повёрнутые к камере

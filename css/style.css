@@ -970,3 +970,50 @@ body.is-booting .hero__content > * {
 }
 
 
+
+
+/* ---------- Неон-вывески (иконки на плашках) ---------- */
+.card__icon:has(img) { width: 64px; height: 64px; }
+.card__icon img {
+  width: 46px; height: 46px; object-fit: contain;
+  animation: neon-breathe 3.4s ease-in-out infinite;
+}
+.adv__icon {
+  display: block;
+  width: 58px; height: 58px;
+  margin: 18px 0 2px;
+  animation: neon-breathe 3.8s ease-in-out infinite, neon-fault 11s linear infinite;
+}
+.work__bolt:has(img) { opacity: 1; }
+.work__bolt:has(img) img {
+  display: block;
+  width: clamp(130px, 68%, 280px);
+  height: auto;
+  animation: neon-breathe 3.2s ease-in-out infinite, neon-fault 9s linear infinite;
+}
+.work:nth-of-type(odd) .work__bolt img { animation-delay: -1.7s, -4.5s; }
+.work:nth-of-type(3n) .work__bolt img { animation-delay: -0.6s, -7.1s; }
+
+/* «дыхание» неоновой трубки */
+@keyframes neon-breathe {
+  0%, 100% { opacity: .9; filter: drop-shadow(0 0 6px rgba(0, 212, 255, .4)) drop-shadow(0 0 18px rgba(0, 212, 255, .18)); }
+  50%      { opacity: 1;  filter: drop-shadow(0 0 9px rgba(0, 212, 255, .55)) drop-shadow(0 0 26px rgba(0, 212, 255, .28)); }
+}
+/* неисправная вывеска: отдельные «трубки» мигают и гаснут */
+@keyframes neon-fault {
+  0%, 100% { opacity: 1; }
+  6%    { opacity: .18; }
+  7%    { opacity: .95; }
+  8%    { opacity: .3; }
+  9%    { opacity: 1; }
+  47%   { opacity: 1; }
+  48%   { opacity: .1; }
+  49.5% { opacity: .7; }
+  50.5% { opacity: .12; }
+  52%   { opacity: .85; }
+  53%   { opacity: .08; }
+  54.5% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card__icon img, .adv__icon, .work__bolt img { animation: none; }
+}
