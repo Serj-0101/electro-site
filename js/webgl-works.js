@@ -55,7 +55,7 @@
     sub: 'Предварительный расчёт стоимости работ',
     href: 'pages/calc.html',
     palette: PALETTES['w-4'],
-    icon: 'img/icons/calculator.webp',
+    icon: 'img/icons/calculator.webp?v=2',
   }];
   const works = [...fromServices, ...fromWorks, ...fromAdv, ...fromExtra];
   works.forEach((w, i) => { w.seed = i + 1; });
@@ -69,44 +69,104 @@
     im.onerror = () => resolve(null);
     im.src = url;
   });
-  /* случайные области-«жилы сбоя»: куски вывески, которые гаснут отдельно */
-  const blobsFor = (rnd, S) => {
-    const blobs = [];
-    const n = 2 + Math.floor(rnd() * 2);
-    for (let b = 0; b < n; b++) {
-      blobs.push({
-        x: rnd() * (S * 0.68), y: rnd() * (S * 0.68),
-        w: S * (0.2 + rnd() * 0.28), h: S * (0.2 + rnd() * 0.28),
-      });
-    }
-    return blobs;
-  };
-  const fillBlobs = (ctx, blobs) => {
-    ctx.fillStyle = '#fff';
-    blobs.forEach((b) => {
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(b.x, b.y, b.w, b.h, b.w * 0.3);
-      else ctx.rect(b.x, b.y, b.w, b.h);
-      ctx.fill();
-    });
-  };
-  /* два слоя: base — стабильные трубки (области вырезаны), fault — только области сбоя */
+  /* разбивка иконки на отдельные неоновые трубки (связные компоненты по альфе):
+     мерцают и гаснут только сами трубки — фон и соседние трубки не трогаем */
   function makeNeonTextures(img, seed, maxAniso) {
     const S = img.width;
-    const blobs = blobsFor(mulberry32(seed * 131 + 7), S);
-    const mk = (mode) => {
+    const N = S * S;
+    const src = document.createElement('canvas');
+    src.width = src.height = S;
+    const sctx = src.getContext('2d', { willReadFrequently: true });
+    sctx.drawImage(img, 0, 0, S, S);
+    const d = sctx.getImageData(0, 0, S, S).data;
+    const rnd = mulberry32(seed * 131 + 7);
+
+    /* 1) связные компоненты ярких пикселей — ядра трубок */
+    const label = new Int32Array(N);
+    const sizes = [0];
+    const stack = new Int32Array(N);
+    const TUBE_A = 150;
+    let next = 1;
+    for (let p = 0; p < N; p++) {
+      if (label[p] || d[p * 4 + 3] <= TUBE_A) continue;
+      let sp = 0;
+      stack[sp++] = p; label[p] = next;
+      let size = 0;
+      while (sp) {
+        const q = stack[--sp]; size++;
+        const x = q % S;
+        const y = (q / S) | 0;
+        if (x > 0 && !label[q - 1] && d[(q - 1) * 4 + 3] > TUBE_A) { label[q - 1] = next; stack[sp++] = q - 1; }
+        if (x < S - 1 && !label[q + 1] && d[(q + 1) * 4 + 3] > TUBE_A) { label[q + 1] = next; stack[sp++] = q + 1; }
+        if (y > 0 && !label[q - S] && d[(q - S) * 4 + 3] > TUBE_A) { label[q - S] = next; stack[sp++] = q - S; }
+        if (y < S - 1 && !label[q + S] && d[(q + S) * 4 + 3] > TUBE_A) { label[q + S] = next; stack[sp++] = q + S; }
+      }
+      sizes[next] = size;
+      next++;
+    }
+
+    /* 2) мягкий ореол вокруг трубки приписываем ближайшей трубке */
+    const R = 9;
+    for (let p = 0; p < N; p++) {
+      if (label[p] || d[p * 4 + 3] <= 16) continue;
+      const x = p % S, y = (p / S) | 0;
+      outer:
+      for (let dy = -R; dy <= R; dy++) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= S) continue;
+        for (let dx = -R; dx <= R; dx++) {
+          const nx = x + dx;
+          if (nx < 0 || nx >= S) continue;
+          if (label[ny * S + nx]) { label[p] = label[ny * S + nx]; break outer; }
+        }
+      }
+    }
+
+    /* 3) какие трубки «сбоят»: часть контуров уходит в отдельные слои (макс. 3) */
+    const bigs = [];
+    for (let L = 1; L < sizes.length; L++) if (sizes[L] >= N * 0.0012) bigs.push(L);
+    const partOf = new Int32Array(sizes.length);
+    let faultCount = 0;
+    if (bigs.length >= 2) {
+      const order = bigs.slice().sort((a, b) => sizes[b] - sizes[a]);
+      const totalTube = order.reduce((acc, L) => acc + sizes[L], 0);
+      let covered = 0;
+      for (const L of order) {
+        if (faultCount >= 3 || covered / totalTube > 0.45) break;
+        if (rnd() < 0.45) { partOf[L] = ++faultCount; covered += sizes[L]; }
+      }
+      if (!faultCount) partOf[order[order.length - 1]] = ++faultCount;
+    } else if (bigs.length === 1) {
+      partOf[bigs[0]] = ++faultCount;   /* единственный контур — сбоит целиком, как умирающая вывеска */
+    }
+
+    /* 4) раскладываем пиксели по слоям: 0 — стабильная основа, 1..k — трубки со сбоями */
+    const outs = [];
+    for (let k = 0; k <= Math.max(faultCount, 1); k++) {
       const c = document.createElement('canvas');
       c.width = c.height = S;
-      const ctx = c.getContext('2d');
-      ctx.drawImage(img, 0, 0, S, S);
-      ctx.globalCompositeOperation = mode;
-      fillBlobs(ctx, blobs);
-      const tex = new THREE.CanvasTexture(c);
+      outs.push([c, c.getContext('2d')]);
+    }
+    const imgs = outs.map((pair) => pair[1].createImageData(S, S));
+    if (bigs.length) {
+      for (let p = 0; p < N; p++) {
+        const L = label[p];
+        if (!L) continue;
+        const i4 = p * 4;
+        const out = imgs[partOf[L]].data;
+        out[i4] = d[i4]; out[i4 + 1] = d[i4 + 1]; out[i4 + 2] = d[i4 + 2]; out[i4 + 3] = d[i4 + 3];
+      }
+    } else {
+      imgs[0].data.set(d);   /* запасной путь: иконка одним слоем */
+    }
+    const toTex = (k) => {
+      outs[k][1].putImageData(imgs[k], 0, 0);
+      const tex = new THREE.CanvasTexture(outs[k][0]);
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = maxAniso;
       return tex;
     };
-    return { base: mk('destination-out'), fault: mk('destination-in') };
+    return { base: toTex(0), faults: imgs.slice(1).map((im, k) => toTex(k + 1)) };
   }
 
   /* ---------- Параметры спирали ---------- */
@@ -702,11 +762,15 @@
         const texs = makeNeonTextures(iconImg, works[i % works.length].seed, maxAniso);
         neon = {
           base: mkLayer(texs.base, CFG.radius + 0.02, 1),
-          fault: mkLayer(texs.fault, CFG.radius + 0.024, 2),
+          flicks: texs.faults.map((tex, k) => ({
+            mesh: mkLayer(tex, CFG.radius + 0.024 + k * 0.004, 2 + k),
+            t: Math.random() * 10,
+            phase: Math.random() * 10,
+            state: 'on',
+            until: 2 + Math.random() * 6,
+            k: 1,
+          })),
           t: Math.random() * 10,
-          state: 'on',
-          until: 1.5 + Math.random() * 5,
-          k: 1,
         };
       }
 
@@ -880,32 +944,36 @@
         c.mesh.scale.set(c.scale, c.scale, c.scale);
         c.mesh.position.z = 0.32 * c.pop;
 
-        /* Неон-вывеска: «дыхание» основы + сбои отдельных «трубок» */
+        /* Неон-вывеска: ровное «дыхание» основы + сбои отдельных трубок */
         if (c.neon) {
           const n = c.neon;
           n.t += dt;
           const fade = Math.min(1, c.mat.opacity);
-          const breathe = 0.86 + 0.14 * Math.sin(n.t * 1.7 + c.angle * 3.1);
+          const cardB = 0.4 + 0.6 * c.mat.color.r;
+          const breathe = 0.88 + 0.12 * Math.sin(n.t * 1.7 + c.angle * 3.1);
           n.base.material.opacity = fade * breathe;
-          n.base.material.color.setScalar(0.78 + 0.22 * breathe * c.mat.color.r);
+          n.base.material.color.setScalar((0.8 + 0.2 * breathe) * cardB);
 
-          let f = 0.9 + 0.1 * Math.sin(n.t * 2.3 + c.angle);
-          n.until -= dt;
-          if (n.state === 'on') {
-            if (n.until <= 0) { n.state = 'stutter'; n.until = 0.12 + Math.random() * 0.25; }
-          } else if (n.state === 'stutter') {
-            f = (Math.floor(n.t * 22) % 2) ? 0.15 : 1;            // строб-мигание
-            if (n.until <= 0) { n.state = 'off'; n.until = 0.2 + Math.random() * 1.3; }
-          } else if (n.state === 'off') {
-            f = 0.05;                                            // «трубки» погасли
-            if (n.until <= 0) { n.state = 'warmup'; n.until = 0.3 + Math.random() * 0.5; }
-          } else {
-            f = (Math.floor(n.t * 14) % 3) ? 0.3 : 0.95;          // гудит и пробует зажечься
-            if (n.until <= 0) { n.state = 'on'; n.until = 3 + Math.random() * 7; }
-          }
-          n.k += (f - n.k) * Math.min(1, dt * 30);
-          n.fault.material.opacity = fade * n.k;
-          n.fault.material.color.setScalar(0.78 + 0.22 * n.k * c.mat.color.r);
+          n.flicks.forEach((fl) => {
+            fl.t += dt;
+            let f = 0.92 + 0.08 * Math.sin(fl.t * 2.3 + fl.phase);
+            fl.until -= dt;
+            if (fl.state === 'on') {
+              if (fl.until <= 0) { fl.state = 'stutter'; fl.until = 0.1 + Math.random() * 0.22; }
+            } else if (fl.state === 'stutter') {
+              f = (Math.floor(fl.t * 24) % 2) ? 0.12 : 1;          // строб перед отказом
+              if (fl.until <= 0) { fl.state = 'off'; fl.until = 0.25 + Math.random() * 1.4; }
+            } else if (fl.state === 'off') {
+              f = 0.04;                                            // трубка погасла
+              if (fl.until <= 0) { fl.state = 'warmup'; fl.until = 0.3 + Math.random() * 0.6; }
+            } else {
+              f = (Math.floor(fl.t * 13) % 3) ? 0.25 : 0.95;       // гудит и пробует зажечься
+              if (fl.until <= 0) { fl.state = 'on'; fl.until = 2.5 + Math.random() * 6.5; }
+            }
+            fl.k += (f - fl.k) * Math.min(1, dt * 28);
+            fl.mesh.material.opacity = fade * fl.k;
+            fl.mesh.material.color.setScalar((0.8 + 0.2 * fl.k) * cardB);
+          });
         }
       });
 
