@@ -55,7 +55,7 @@
     sub: 'Предварительный расчёт стоимости работ',
     href: 'pages/calc.html',
     palette: PALETTES['w-4'],
-    icon: 'img/icons/calculator.webp?v=3',
+    icon: 'img/icons/calculator.webp?v=4',
   }];
   const works = [...fromServices, ...fromWorks, ...fromAdv, ...fromExtra];
   works.forEach((w, i) => { w.seed = i + 1; });
