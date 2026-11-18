@@ -38,7 +38,7 @@
   const fromAdv = [...document.querySelectorAll('.advantages__grid .adv')].map((el, i) => ({
     title: (el.querySelector('h3') || el).textContent.trim(),
     sub: cut((el.querySelector('p') || el).textContent, 54) + '…',
-    href: '#contacts',
+    href: el.getAttribute('href') || '#contacts',
     palette: paletteFor(i + 4),
     icon: el.dataset.icon || null,
   }));
