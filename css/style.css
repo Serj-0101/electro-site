@@ -505,6 +505,8 @@ body.is-booting .hero__content > * {
 
 /* ---------- Работы: 3D-спираль вокруг светящегося хребта ---------- */
 .works-stage { display: none; }
+/* вертикальный свайп — браузер, горизонтальный — наша логика перемещения */
+.works-stage canvas { touch-action: pan-y; }
 .works--3d { padding: 0; }
 .works--3d .works__static { display: none; }
 .works--3d .works-stage { display: block; position: relative; height: 1100vh; }

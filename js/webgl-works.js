@@ -853,6 +853,8 @@
     let mx = 0, my = 0, tmx = 0, tmy = 0;
     let hovered = -1;
     const raycaster = new THREE.Raycaster();
+    /* перетаскивание по горизонтали (мышь/палец) — третья степень перемещения */
+    let dragging = false, lastX = 0, dragDist = 0;
 
     canvas.addEventListener('pointermove', (e) => {
       const r = canvas.getBoundingClientRect();
@@ -861,6 +863,7 @@
     }, { passive: true });
     canvas.addEventListener('pointerleave', () => { pointer.set(9, 9); tmx = 0; tmy = 0; });
     canvas.addEventListener('click', () => {
+      if (dragDist > 8) { dragDist = 0; return; }   // это было перетаскивание, не клик
       if (hovered > -1) window.location.href = works[hovered % works.length].href;
     });
 
@@ -893,6 +896,43 @@
 
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden && visible && !rafId) loop();
+    });
+
+    /* ----- Степени перемещения: колесо ←→, перетаскивание (мышь/палец), клавиатура -----
+       Горизонтальный ввод переводится в вертикальный скролл страницы, поэтому
+       прогресс, сглаживание и границы секции остаются нативными. Вертикаль
+       пальца не дублируем — её по-прежнему обрабатывает браузер, и диагональный
+       свайп на сенсорном экране даёт смешанное перемещение по лестнице. */
+    canvas.addEventListener('wheel', (e) => {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        e.preventDefault();               // горизонтальный сдвиг = движение по лестнице
+        window.scrollBy(0, e.deltaX);
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      lastX = e.clientX;
+      dragDist = 0;
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - lastX;
+      lastX = e.clientX;
+      dragDist += Math.abs(dx);
+      if (dx) window.scrollBy(0, dx);     // тянем вбок — лестница едет по вертикали
+    }, { passive: true });
+    window.addEventListener('pointerup', () => { dragging = false; });
+    window.addEventListener('pointercancel', () => { dragging = false; });
+
+    const cardScrollStep = () =>
+      Math.max(80, (stage.offsetHeight - window.innerHeight) / Math.max(1, CARDS - 1));
+    document.addEventListener('keydown', (e) => {
+      if (!visible || e.target.closest('input, textarea, select')) return;
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      const step = cardScrollStep();
+      window.scrollBy({ top: e.key === 'ArrowRight' ? step : -step, behavior: 'smooth' });
     });
 
     const clock = new THREE.Clock();
