@@ -1048,3 +1048,148 @@ body.is-booting .hero__content > * {
 @media (prefers-reduced-motion: reduce) {
   .form--bot__icon { animation: none; }
 }
+
+/* ============================================================
+   Внутренние страницы (v1.17): статьи, места под фото, прайс
+   ============================================================ */
+
+/* Якоря не прячутся под фиксированной шапкой */
+main section[id] { scroll-margin-top: 96px; }
+
+/* ---------- Статья ---------- */
+.article { max-width: 780px; }
+.article p {
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1.8;
+  margin: 0 0 1.15em;
+}
+.article p:first-of-type { color: var(--text); font-size: 17px; }
+
+/* ---------- Место под фото (заменяется на фото автоматически) ---------- */
+.photo {
+  margin: 30px 0;
+  padding: 30px 20px 24px;
+  border: 1px dashed rgba(0, 212, 255, 0.35);
+  border-radius: 16px;
+  background: rgba(0, 212, 255, 0.04);
+  text-align: center;
+}
+.photo__frame { display: block; font-size: 30px; line-height: 1; margin-bottom: 10px; }
+.photo figcaption {
+  color: var(--text-dim);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+.photo figcaption code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12.5px;
+  color: var(--accent);
+  word-break: break-all;
+}
+.photo.photo--has-img { padding: 0; border: none; background: none; }
+.photo.photo--has-img img {
+  display: block;
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ---------- Секции на странице услуг ---------- */
+.service { padding: 26px 0 10px; border-top: 1px solid rgba(255, 255, 255, 0.08); margin-top: 56px; }
+.service:first-of-type { border-top: none; margin-top: 8px; padding-top: 0; }
+.service__head { display: flex; align-items: center; gap: 18px; margin-bottom: 10px; }
+.service__icon {
+  flex: 0 0 76px;
+  width: 76px; height: 76px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 20px;
+  background: rgba(0, 212, 255, 0.05);
+  overflow: hidden;
+}
+.service__icon img { width: 100%; height: 100%; object-fit: cover; }
+.service h2 { margin: 0; }
+@media (max-width: 640px) {
+  .service__head { gap: 14px; }
+  .service__icon { flex-basis: 58px; width: 58px; height: 58px; border-radius: 16px; }
+}
+
+/* ---------- Портфолио: работы ---------- */
+.work-article { padding: 30px 0 6px; border-top: 1px solid rgba(255, 255, 255, 0.08); margin-top: 52px; }
+.work-article:first-of-type { border-top: none; margin-top: 10px; }
+
+/* ---------- О компании: факты ---------- */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 40px 0 8px;
+}
+.fact {
+  padding: 24px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  text-align: center;
+}
+.fact__num {
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: 30px;
+  color: var(--accent);
+  display: block;
+  margin-bottom: 6px;
+}
+.fact__text { color: var(--text-dim); font-size: 14px; line-height: 1.5; }
+@media (max-width: 720px) { .facts { grid-template-columns: 1fr; } }
+
+/* ---------- Страница цен ---------- */
+.price-note { color: var(--text-dim); max-width: 560px; margin-top: 16px; }
+.price-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 36px;
+  font-size: 15px;
+}
+.price-table th {
+  font-family: var(--font-head);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.35);
+}
+.price-table td {
+  padding: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-dim);
+  vertical-align: top;
+}
+.price-table tr:hover td { background: rgba(0, 212, 255, 0.04); }
+.price-table td:first-child { color: var(--text); }
+.price-table__hint { display: block; font-size: 13px; margin-top: 3px; color: var(--text-dim); opacity: 0.8; }
+.price-table__price, .price-table__unit { white-space: nowrap; text-align: right; }
+.price-table__price { color: var(--accent); font-weight: 700; }
+.price-cta { margin-top: 40px; display: flex; gap: 14px; flex-wrap: wrap; }
+@media (max-width: 640px) {
+  .price-table { font-size: 14px; }
+  .price-table th, .price-table td { padding: 10px 8px; }
+  .price-table__hint { display: none; }
+}
+
+/* ---------- Широкая кнопка-якорь между разделами ---------- */
+.next-page {
+  margin-top: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+  font-size: 14.5px;
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(0, 212, 255, 0.4);
+  padding-bottom: 2px;
+}
+.next-page:hover { border-bottom-style: solid; }
