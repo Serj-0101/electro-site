@@ -934,7 +934,7 @@
     canvas.addEventListener('wheel', (e) => {
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
         e.preventDefault();               // горизонтальный сдвиг = движение по лестнице
-        window.scrollBy(0, e.deltaX);
+        window.scrollBy(0, -e.deltaX);    // в ту же сторону, что и свайп/перетаскивание
       }
     }, { passive: false });
 
