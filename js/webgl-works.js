@@ -951,7 +951,7 @@
       const dx = e.clientX - mouseLastX;
       mouseLastX = e.clientX;
       dragDist += Math.abs(dx);
-      if (dx) window.scrollBy(0, dx);
+      if (dx) window.scrollBy(0, -dx);   // тянем лестницу: вправо — назад
     }, { passive: true });
     window.addEventListener('pointerup', () => { mouseDrag = false; });
 
@@ -975,7 +975,7 @@
       }
       if (tAxis === 'h') {
         e.preventDefault();               // жест наш — страница не должна тянуться
-        const dx = t.clientX - tLastX;
+        const dx = -(t.clientX - tLastX);   // контент следует за пальцем: влево — вперёд
         tLastX = t.clientX;
         touchExtra = Math.min(1, Math.max(-1, touchExtra + dx / totalScroll()));
         dragDist += Math.abs(dx);
