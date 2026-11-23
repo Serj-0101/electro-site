@@ -853,8 +853,8 @@
     let mx = 0, my = 0, tmx = 0, tmy = 0;
     let hovered = -1;
     const raycaster = new THREE.Raycaster();
-    /* перетаскивание по горизонтали (мышь/палец) — третья степень перемещения */
-    let dragging = false, lastX = 0, dragDist = 0;
+    /* клик/свайп: dragDist отличает тап от перетаскивания */
+    let dragDist = 0;
 
     canvas.addEventListener('pointermove', (e) => {
       const r = canvas.getBoundingClientRect();
@@ -862,9 +862,22 @@
       tmx = pointer.x; tmy = pointer.y;
     }, { passive: true });
     canvas.addEventListener('pointerleave', () => { pointer.set(9, 9); tmx = 0; tmy = 0; });
-    canvas.addEventListener('click', () => {
+    canvas.addEventListener('click', (e) => {
       if (dragDist > 8) { dragDist = 0; return; }   // это было перетаскивание, не клик
-      if (hovered > -1) window.location.href = works[hovered % works.length].href;
+      let idx = hovered;
+      if (idx === -1 && e && e.clientX != null) {
+        /* тач-экран: наведения нет — пускаем луч прямо из точки касания */
+        const r = canvas.getBoundingClientRect();
+        const p = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1,
+                                     -((e.clientY - r.top) / r.height) * 2 + 1);
+        raycaster.setFromCamera(p, camera);
+        const hits = raycaster.intersectObjects(cards.filter((c) => c.mesh.visible).map((c) => c.mesh), false);
+        for (const h of hits) {
+          const wa = cards[h.object.userData.index].angle + helix.rotation.y;
+          if (Math.cos(wa) > 0.3) { idx = h.object.userData.index; break; }
+        }
+      }
+      if (idx > -1) window.location.href = works[idx % works.length].href;
     });
 
     /* ----- Размер ----- */
@@ -879,11 +892,24 @@
     window.addEventListener('resize', resize);
     resize();
 
-    /* ----- Прогресс прокрутки внутри секции ----- */
+    /* ----- Прогресс прокрутки (+ добавка горизонтального свайпа) ----- */
+    let touchExtra = 0;
+    const totalScroll = () => Math.max(1, stage.offsetHeight - window.innerHeight);
     const getTarget = () => {
       const rect = stage.getBoundingClientRect();
       const total = stage.offsetHeight - window.innerHeight;
-      return total > 0 ? Math.min(1, Math.max(0, -rect.top / total)) : 0;
+      const base = total > 0 ? Math.min(1, Math.max(0, -rect.top / total)) : 0;
+      return Math.min(1, Math.max(0, base + touchExtra));
+    };
+    /* после горизонтального свайпа переносим его в реальный скролл страницы */
+    const syncAfterSwipe = () => {
+      if (!touchExtra) return;
+      const total = totalScroll();
+      const rect = stage.getBoundingClientRect();
+      const base = Math.min(1, Math.max(0, -rect.top / total));
+      const want = Math.min(1, Math.max(0, base + touchExtra));
+      window.scrollBy(0, (want - base) * total);
+      touchExtra = 0;
     };
     let progress = getTarget();
     let visible = false;
@@ -898,11 +924,13 @@
       if (!document.hidden && visible && !rafId) loop();
     });
 
-    /* ----- Степени перемещения: колесо ←→, перетаскивание (мышь/палец), клавиатура -----
-       Горизонтальный ввод переводится в вертикальный скролл страницы, поэтому
-       прогресс, сглаживание и границы секции остаются нативными. Вертикаль
-       пальца не дублируем — её по-прежнему обрабатывает браузер, и диагональный
-       свайп на сенсорном экране даёт смешанное перемещение по лестнице. */
+    /* ----- Степени перемещения: колесо ←→, мышь, палец, клавиатура -----
+       Колесо и мышь сводятся к вертикальному скроллу страницы.
+       Палец: вертикаль — нативный скролл (touch-action: pan-y у канваса),
+       горизонталь — свой обработчик touchmove с preventDefault: прогресс
+       двигается напрямую (touchExtra), по отпусканию синхронизируем скролл.
+       Pointer-события для касаний не используются: на мобильных браузерах
+       жест отменяется (pointercancel) и scrollBy во время касания не работает. */
     canvas.addEventListener('wheel', (e) => {
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
         e.preventDefault();               // горизонтальный сдвиг = движение по лестнице
@@ -910,20 +938,69 @@
       }
     }, { passive: false });
 
+    /* мышь: перетаскивание вбок */
+    let mouseDrag = false, mouseLastX = 0;
     canvas.addEventListener('pointerdown', (e) => {
-      dragging = true;
-      lastX = e.clientX;
       dragDist = 0;
+      if (e.pointerType !== 'mouse') return;
+      mouseDrag = true;
+      mouseLastX = e.clientX;
     });
     window.addEventListener('pointermove', (e) => {
-      if (!dragging) return;
-      const dx = e.clientX - lastX;
-      lastX = e.clientX;
+      if (!mouseDrag) return;
+      const dx = e.clientX - mouseLastX;
+      mouseLastX = e.clientX;
       dragDist += Math.abs(dx);
-      if (dx) window.scrollBy(0, dx);     // тянем вбок — лестница едет по вертикали
+      if (dx) window.scrollBy(0, dx);
     }, { passive: true });
-    window.addEventListener('pointerup', () => { dragging = false; });
-    window.addEventListener('pointercancel', () => { dragging = false; });
+    window.addEventListener('pointerup', () => { mouseDrag = false; });
+
+    /* палец: ось фиксируется после 12px — дальше горизонталь ведём сами */
+    let tAxis = '', tStartX = 0, tStartY = 0, tLastX = 0, tVel = 0, tInertia = 0;
+    const stopTouchInertia = () => { if (tInertia) { cancelAnimationFrame(tInertia); tInertia = 0; } };
+    canvas.addEventListener('touchstart', (e) => {
+      stopTouchInertia();
+      syncAfterSwipe();
+      tAxis = ''; tVel = 0; dragDist = 0;
+      const t = e.touches[0];
+      tStartX = tLastX = t.clientX;
+      tStartY = t.clientY;
+    }, { passive: true });
+    canvas.addEventListener('touchmove', (e) => {
+      const t = e.touches[0];
+      const dxTotal = t.clientX - tStartX;
+      const dyTotal = t.clientY - tStartY;
+      if (!tAxis && (Math.abs(dxTotal) > 12 || Math.abs(dyTotal) > 12)) {
+        tAxis = Math.abs(dxTotal) > Math.abs(dyTotal) * 1.15 ? 'h' : 'v';
+      }
+      if (tAxis === 'h') {
+        e.preventDefault();               // жест наш — страница не должна тянуться
+        const dx = t.clientX - tLastX;
+        tLastX = t.clientX;
+        touchExtra = Math.min(1, Math.max(-1, touchExtra + dx / totalScroll()));
+        dragDist += Math.abs(dx);
+        tVel = 0.75 * tVel + 0.25 * dx;
+      }
+    }, { passive: false });
+    canvas.addEventListener('touchend', () => {
+      if (tAxis === 'h' && Math.abs(tVel) >= 2) {
+        const tick = () => {
+          if (Math.abs(tVel) < 0.4) { tInertia = 0; syncAfterSwipe(); return; }
+          touchExtra = Math.min(1, Math.max(-1, touchExtra + tVel / totalScroll()));
+          tVel *= 0.94;                   // плавное затухание, как у нативного свайпа
+          tInertia = requestAnimationFrame(tick);
+        };
+        tInertia = requestAnimationFrame(tick);
+      } else {
+        syncAfterSwipe();
+      }
+      tAxis = '';
+    }, { passive: true });
+    canvas.addEventListener('touchcancel', () => {
+      stopTouchInertia();
+      syncAfterSwipe();
+      tAxis = '';
+    }, { passive: true });
 
     const cardScrollStep = () =>
       Math.max(80, (stage.offsetHeight - window.innerHeight) / Math.max(1, CARDS - 1));
