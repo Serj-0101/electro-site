@@ -901,16 +901,6 @@
       const base = total > 0 ? Math.min(1, Math.max(0, -rect.top / total)) : 0;
       return Math.min(1, Math.max(0, base + touchExtra));
     };
-    /* после горизонтального свайпа переносим его в реальный скролл страницы */
-    const syncAfterSwipe = () => {
-      if (!touchExtra) return;
-      const total = totalScroll();
-      const rect = stage.getBoundingClientRect();
-      const base = Math.min(1, Math.max(0, -rect.top / total));
-      const want = Math.min(1, Math.max(0, base + touchExtra));
-      window.scrollBy(0, (want - base) * total);
-      touchExtra = 0;
-    };
     let progress = getTarget();
     let visible = false;
     let rafId = 0;
@@ -934,7 +924,7 @@
     canvas.addEventListener('wheel', (e) => {
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
         e.preventDefault();               // горизонтальный сдвиг = движение по лестнице
-        window.scrollBy(0, -e.deltaX);    // в ту же сторону, что и свайп/перетаскивание
+        touchExtra = Math.min(1, Math.max(-1, touchExtra - e.deltaX / totalScroll()));
       }
     }, { passive: false });
 
@@ -948,19 +938,33 @@
     });
     window.addEventListener('pointermove', (e) => {
       if (!mouseDrag) return;
-      const dx = e.clientX - mouseLastX;
+      const dx = -(e.clientX - mouseLastX);   // тянем лестницу: вправо — назад
       mouseLastX = e.clientX;
       dragDist += Math.abs(dx);
-      if (dx) window.scrollBy(0, -dx);   // тянем лестницу: вправо — назад
+      if (dx) touchExtra = Math.min(1, Math.max(-1, touchExtra + dx / totalScroll()));
     }, { passive: true });
     window.addEventListener('pointerup', () => { mouseDrag = false; });
 
     /* палец: ось фиксируется после 12px — дальше горизонталь ведём сами */
     let tAxis = '', tStartX = 0, tStartY = 0, tLastX = 0, tVel = 0, tInertia = 0;
     const stopTouchInertia = () => { if (tInertia) { cancelAnimationFrame(tInertia); tInertia = 0; } };
+    let touchHeld = false;    // идёт касание — фоновую синхронизацию приостанавливаем
+    /* добавка свайпа плавно переползает в реальный скролл страницы маленькими
+       шагами в кадре — без скачка страницы и без дёрганья плашек */
+    const syncStep = () => {
+      if (touchHeld || tInertia || tAxis) return;
+      if (Math.abs(touchExtra) < 0.0006) { touchExtra = 0; return; }
+      const total = totalScroll();
+      const rect = stage.getBoundingClientRect();
+      const base = Math.min(1, Math.max(0, -rect.top / total));
+      if ((base <= 0.0001 && touchExtra < 0) || (base >= 0.9999 && touchExtra > 0)) { touchExtra = 0; return; }
+      const d = touchExtra * 0.09;
+      window.scrollBy(0, d * total);
+      touchExtra -= d;
+    };
     canvas.addEventListener('touchstart', (e) => {
       stopTouchInertia();
-      syncAfterSwipe();
+      touchHeld = true;
       tAxis = ''; tVel = 0; dragDist = 0;
       const t = e.touches[0];
       tStartX = tLastX = t.clientX;
@@ -985,20 +989,19 @@
     canvas.addEventListener('touchend', () => {
       if (tAxis === 'h' && Math.abs(tVel) >= 2) {
         const tick = () => {
-          if (Math.abs(tVel) < 0.4) { tInertia = 0; syncAfterSwipe(); return; }
+          if (Math.abs(tVel) < 0.4) { tInertia = 0; return; }
           touchExtra = Math.min(1, Math.max(-1, touchExtra + tVel / totalScroll()));
           tVel *= 0.94;                   // плавное затухание, как у нативного свайпа
           tInertia = requestAnimationFrame(tick);
         };
         tInertia = requestAnimationFrame(tick);
-      } else {
-        syncAfterSwipe();
       }
+      touchHeld = false;
       tAxis = '';
     }, { passive: true });
     canvas.addEventListener('touchcancel', () => {
       stopTouchInertia();
-      syncAfterSwipe();
+      touchHeld = false;
       tAxis = '';
     }, { passive: true });
 
@@ -1021,8 +1024,11 @@
       const dt = Math.min(clock.getDelta(), 0.05);
       const t = clock.getElapsedTime();
       const target = getTarget();
-      const velocity = target - progress;
-      progress += velocity * 0.045;                     // очень мягкое сглаживание
+      /* за пальцем/инерцией лестница идёт быстрее (отзывчиво), при обычной
+         прокрутке — очень мягко; страница доводит скролл сама, без рывков */
+      const ease = (touchHeld || tInertia) ? 0.22 : 0.045;
+      progress += (target - progress) * ease;
+      syncStep();
 
       const f = progress * (CARDS - 1);                 // «номер» карточки в центре
       helix.rotation.y = -f * STEP;
