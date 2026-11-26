@@ -28,7 +28,10 @@ WebGL-частицы «живой электрической энергии» в
 ## Технологии
 - HTML5, CSS3, vanilla JS
 - Three.js r160 + GSAP 3.12 (CDN, без сборки)
-- Хостинг: GitHub Pages (`Serj-0101/electro-site`)
+- Хостинг: Netlify (https://electro-german.netlify.app) + зеркало GitHub Pages
+- ИИ-калькулятор: GigaChat API (бесплатный GIGACHAT_API_PERS) через
+  Netlify Function `/api/giga` — ключи в env Netlify (`GIGA_CLIENT_ID`,
+  `GIGA_CLIENT_SECRET`), прайс в промпте функции (синхронно с `prices.json`)
 
 ## Локальный запуск
 VS Code → расширение Live Server → открыть `index.html`,

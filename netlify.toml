@@ -1,0 +1,13 @@
+# Конфиг Netlify: статический сайт + каталог функций
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+# Красивый адрес API для ИИ-калькулятора
+[[redirects]]
+  from = "/api/giga"
+  to = "/.netlify/functions/giga"
+  status = 200

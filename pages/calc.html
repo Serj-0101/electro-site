@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Manrope:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/style.css?v=35">
+  <link rel="stylesheet" href="../css/style.css?v=42">
 </head>
 <body>
 
@@ -52,6 +52,24 @@
         <p class="calc-intro">Выберите работы и количество — сумма посчитается сразу.
         Выезд электрика на объект и предварительная оценка — <b>бесплатно</b>.</p>
 
+        <!-- ===== ИИ-расчёт (GigaChat) — работает на Netlify, на GitHub Pages скрыт ===== -->
+        <div class="giga" id="gigaChat" hidden>
+          <div class="giga-card">
+            <div class="giga-head">
+              <span class="giga-dot" aria-hidden="true"></span>
+              <h3>ИИ-расчёт <span class="accent">·</span> опишите задачу словами</h3>
+              <span class="giga-model">GigaChat</span>
+            </div>
+            <div class="giga-log" aria-live="polite"></div>
+            <form class="giga-form">
+              <input class="giga-input" type="text" maxlength="600" autocomplete="off"
+                     placeholder="Например: 2-комнатная квартира, 20 розеток, 10 точечных, щит 24 модуля" required>
+              <button type="submit" class="giga-send btn btn--primary magnetic" aria-label="Отправить">→</button>
+            </form>
+            <p class="giga-note">Предварительный расчёт по прайсу ГЕРМАН · выезд на объект и точная смета — бесплатно</p>
+          </div>
+        </div>
+
         <div class="calc-grid">
           <div class="calc-list" id="calcList"></div>
 
@@ -88,8 +106,9 @@
     </div>
   </footer>
 
-  <script src="../js/prices.js?v=34"></script>
-  <script src="../js/calc.js?v=34"></script>
+  <script src="../js/prices.js?v=42"></script>
+  <script src="../js/calc.js?v=42"></script>
+  <script src="../js/giga-chat.js?v=42"></script>
   <script>
     /* Бургер-меню + год (лёгкая страница — без main.js и WebGL) */
     (function () {

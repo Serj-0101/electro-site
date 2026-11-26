@@ -1203,3 +1203,75 @@ main section[id] { scroll-margin-top: 96px; }
   padding-bottom: 2px;
 }
 .next-page:hover { border-bottom-style: solid; }
+
+/* ---------- ИИ-калькулятор (GigaChat) ---------- */
+.giga-card {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 26px;
+  margin-bottom: 40px;
+}
+.giga-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.giga-head h3 { font-family: var(--font-head); font-weight: 600; font-size: 17px; margin: 0; flex: 1; }
+.giga-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.8);
+  animation: bot-pulse 3.2s ease-in-out infinite;
+}
+.giga-model {
+  font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--text-dim); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px;
+}
+.giga-log {
+  max-height: 380px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 12px;
+  padding-right: 6px; margin-bottom: 16px;
+  scrollbar-width: thin;
+}
+.giga-msg {
+  max-width: 86%; padding: 12px 16px; border-radius: 14px;
+  font-size: 15px; line-height: 1.55;
+  white-space: pre-wrap; overflow-wrap: break-word;
+}
+.giga-msg--ai {
+  align-self: flex-start;
+  background: rgba(0, 212, 255, 0.06);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-top-left-radius: 4px;
+}
+.giga-msg--user {
+  align-self: flex-end;
+  background: rgba(0, 212, 255, 0.16);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  border-top-right-radius: 4px;
+}
+.giga-msg--err {
+  align-self: center; text-align: center; font-size: 13px;
+  color: #ff9b9b; background: rgba(255, 80, 80, 0.07);
+  border: 1px dashed rgba(255, 80, 80, 0.4);
+}
+.giga-msg--think { align-self: flex-start; opacity: 0.6; font-style: italic; }
+.giga-form { display: flex; gap: 10px; }
+.giga-input {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  padding: 13px 16px;
+  outline: none;
+  transition: border-color 0.3s;
+}
+.giga-input:focus { border-color: var(--accent); }
+.giga-input:disabled { opacity: 0.5; }
+.giga-send { padding: 0 22px; font-size: 18px; }
+.giga-note { margin-top: 12px; font-size: 12px; color: var(--text-dim); text-align: center; }
+@media (max-width: 640px) {
+  .giga-msg { max-width: 94%; }
+  .giga-card { padding: 18px 14px; }
+  .giga-head h3 { font-size: 15px; }
+}
