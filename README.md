@@ -56,6 +56,9 @@ VS Code → расширение Live Server → открыть `index.html`,
 - Карусель: горизонтальная прокрутка — свайп/колесо/мышь в одну сторону,
   плавно и без дёрганья (добавка прогресса + фоновая синхронизация скролла,
   тег `v1.18`)
+- ИИ-калькулятор GigaChat: чат на странице калькулятора + Netlify Function
+  `/api/giga` (ключи в env Netlify; ждём `GIGA_CLIENT_ID/SECRET` от
+  developers.sber.ru) (тег `v1.20`)
 - Калькулятор: `pages/calc.html`, все цены в одном месте — `js/prices.js` (пока заглушки)
 - Внутренние страницы (тег `v1.17`): `services.html` (4 услуги с якорями
   #wiring/#panels/#lighting/#outdoor), `portfolio.html` (6 работ),
